@@ -1515,10 +1515,17 @@ function setupTouchZoomSlider() {
 
             // 확대 단추 (＋)
             const zoomInBtn = document.createElement("button");
+            zoomInBtn.type = "button";
             zoomInBtn.className = "zoom_icon_btn";
             zoomInBtn.innerHTML = "＋";
             zoomInBtn.title = "확대";
-            zoomInBtn.addEventListener("click", () => map.zoomIn({ animate: true }));
+            L.DomEvent.disableClickPropagation(zoomInBtn);
+            zoomInBtn.addEventListener("click", (e) => {
+                L.DomEvent.stopPropagation(e);
+                if (map.getZoom() < map.getMaxZoom()) {
+                    map.zoomIn(1, { animate: true });
+                }
+            });
 
             // 슬라이더 스크롤 트랙
             const track = document.createElement("div");
@@ -1548,10 +1555,17 @@ function setupTouchZoomSlider() {
 
             // 축소 단추 (－)
             const zoomOutBtn = document.createElement("button");
+            zoomOutBtn.type = "button";
             zoomOutBtn.className = "zoom_icon_btn";
             zoomOutBtn.innerHTML = "－";
             zoomOutBtn.title = "축소";
-            zoomOutBtn.addEventListener("click", () => map.zoomOut({ animate: true }));
+            L.DomEvent.disableClickPropagation(zoomOutBtn);
+            zoomOutBtn.addEventListener("click", (e) => {
+                L.DomEvent.stopPropagation(e);
+                if (map.getZoom() > map.getMinZoom()) {
+                    map.zoomOut(1, { animate: true });
+                }
+            });
 
             track.appendChild(slider);
             container.appendChild(zoomInBtn);
