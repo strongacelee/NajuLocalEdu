@@ -2898,16 +2898,28 @@ function resetToInitialState() {
 
     if (state.map) {
         if (state.umdLayer && typeof state.umdLayer.getBounds === "function" && state.umdLayer.getBounds().isValid()) {
-            // 나주시 정밀 경계선 박스에 맞추어 화면 정중앙으로 부드럽고 빠른 비행 포커싱 (0.5초)
-            state.map.flyToBounds(state.umdLayer.getBounds(), {
-                padding: [40, 40],
-                maxZoom: 11.5,
-                animate: true,
-                duration: 0.5
-            });
+            const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
+            if (isPortrait) {
+                // 📱 세로모드: 하단 바텀시트에 가려지지 않도록 하단 220px 오프셋 패딩을 주어 노출 상단 영역 중앙에 타겟팅!
+                state.map.flyToBounds(state.umdLayer.getBounds(), {
+                    paddingTopLeft: [20, 20],
+                    paddingBottomRight: [20, 220],
+                    maxZoom: 11.5,
+                    animate: true,
+                    duration: 0.5
+                });
+            } else {
+                state.map.flyToBounds(state.umdLayer.getBounds(), {
+                    padding: [40, 40],
+                    maxZoom: 11.5,
+                    animate: true,
+                    duration: 0.5
+                });
+            }
         } else {
-            // 나주시 대표 정중앙 중심 좌표로 빠른 비행 이동 (0.5초)
-            state.map.flyTo([35.0158, 126.7815], 11, {
+            const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
+            let centerLat = isPortrait ? 34.9858 : 35.0158;
+            state.map.flyTo([centerLat, 126.7815], 11, {
                 animate: true,
                 duration: 0.5
             });
@@ -3138,13 +3150,20 @@ function updateActivityList() {
         card.appendChild(thumb);
         card.appendChild(info);
 
-        // 카드 클릭 시 해당 활동 상세 오버레이 및 맵 중심으로 비행 (스위칭 100% 보장)
-        card.addEventListener("click", (e) => {
+        // 카드 클릭 시 해당 활동 상세 오버레이 및 맵 중심으로 비행 (세로모드 상단 시야 중심 보정)
+        card.addEventListener("click", () => {
             showDetailOverlay(act);
             if (state.map) {
-                state.map.flyTo([act.lat, act.lng], 14, {
+                const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
+                let targetLat = Number(act.lat);
+                let targetLng = Number(act.lng);
+                if (isPortrait) {
+                    // 세로모드: 하단 바텀시트에 가려지지 않도록 위도를 약간 아래(-0.007)로 보정하여 상단 노출 지도 중앙에 마커 솟아오름!
+                    targetLat = targetLat - 0.007;
+                }
+                state.map.flyTo([targetLat, targetLng], 14, {
                     animate: true,
-                    duration: 0.8
+                    duration: 0.6
                 });
             }
         });
