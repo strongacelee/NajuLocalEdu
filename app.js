@@ -2141,35 +2141,65 @@ function shouldShowActivity(act) {
     return act.sticker === state.currentCategoryFilter;
 }
 
-// 특정 활동에 대한 커스텀 마커 제작 및 이벤트 배치
+// 특정 활동에 대한 대표 이미지 썸네일 마커 제작 및 이벤트 배치
 function createMarkerForActivity(act) {
     const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
     
-    // 이모지와 테두리 색상으로 구성된 미려한 원형 DivIcon 생성
+    // 대표 사진 이미지가 있는지 확인
+    const hasImage = act.images && act.images.length > 0 && act.images[0];
+    const thumbUrl = hasImage ? act.images[0] : null;
+
+    let innerContent = "";
+    if (thumbUrl && thumbUrl !== BACKUP_IMAGE) {
+        // 실제 등록된 대표 사진 썸네일 렌더링
+        innerContent = `<img src="${thumbUrl}" alt="${act.title}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" />`;
+    } else {
+        // 사진이 없는 경우 이모지 아이콘 적용
+        innerContent = `<span style="font-size: 20px;">${sticker.emoji}</span>`;
+    }
+
+    // 대표 이미지 썸네일과 스티커 미니 코너 뱃지가 결합된 액자형 사진 마커 핀
     const iconHtml = `
         <div class="custom_marker_pin" style="
-            background: #ffffff;
-            width: 44px;
-            height: 44px;
-            border: 3px solid ${sticker.color};
+            position: relative;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid ${sticker.color};
+            box-shadow: 0 8px 20px rgba(0,0,0,0.22);
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            font-size: 22px;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         ">
-            ${sticker.emoji}
+            ${innerContent}
+            <!-- 스티커 카테고리 미니 코너 뱃지 -->
+            <div style="
+                position: absolute;
+                bottom: -2px;
+                right: -2px;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #ffffff;
+                border: 1.5px solid ${sticker.color};
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+                z-index: 5;
+            ">${sticker.emoji}</div>
         </div>
     `;
 
     const customIcon = L.divIcon({
         html: iconHtml,
         className: "custom_leaflet_marker",
-        iconSize: [44, 44],
-        iconAnchor: [22, 22]
+        iconSize: [48, 48],
+        iconAnchor: [24, 24]
     });
 
     const marker = L.marker([act.lat, act.lng], { icon: customIcon }).addTo(state.map);
