@@ -1431,6 +1431,90 @@ function applyGlobalStyles() {
         .leaflet${HYPHEN}marker${HYPHEN}icon {
             transition: transform 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease !important;
         }
+
+        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 반응형: 상단 지도 + 하단 가로 수평 스크롤 패널 */
+        @media screen and (orientation: portrait), screen and (max${HYPHEN}width: 900px) {
+            #mainHeader {
+                flex${HYPHEN}direction: column !important;
+                align${HYPHEN}items: flex${HYPHEN}start !important;
+                gap: 12px !important;
+                padding: 14px 20px !important;
+            }
+
+            .header_controls {
+                width: 100% !important;
+                justify${HYPHEN}content: space${HYPHEN}between !important;
+                flex${HYPHEN}wrap: wrap !important;
+                gap: 10px !important;
+            }
+
+            .grade_filters {
+                overflow${HYPHEN}x: auto !important;
+                max${HYPHEN}width: 100% !important;
+                padding${HYPHEN}bottom: 4px !important;
+            }
+
+            #mainContent {
+                flex${HYPHEN}direction: column !important;
+                padding: 12px 14px 16px 14px !important;
+                gap: 14px !important;
+                height: calc(100% ${HYPHEN} 130px) !important;
+            }
+
+            #mapWrapper {
+                flex: 1 1 58% !important;
+                width: 100% !important;
+                height: 58% !important;
+                min${HYPHEN}height: 280px !important;
+                border${HYPHEN}radius: 20px !important;
+            }
+
+            #sidePanel {
+                flex: 0 0 auto !important;
+                width: 100% !important;
+                height: 230px !important;
+                max${HYPHEN}height: 230px !important;
+                border${HYPHEN}radius: 20px !important;
+            }
+
+            .activity_list {
+                display: flex !important;
+                flex${HYPHEN}direction: row !important;
+                overflow${HYPHEN}x: auto !important;
+                overflow${HYPHEN}y: hidden !important;
+                padding: 10px 14px 16px 14px !important;
+                gap: 12px !important;
+                scroll${HYPHEN}snap${HYPHEN}type: x mandatory !important;
+            }
+
+            .activity_card {
+                width: 260px !important;
+                min${HYPHEN}width: 260px !important;
+                max${HYPHEN}width: 260px !important;
+                flex${HYPHEN}shrink: 0 !important;
+                margin${HYPHEN}bottom: 0 !important;
+                scroll${HYPHEN}snap${HYPHEN}align: start !important;
+                box${HYPHEN}sizing: border${HYPHEN}box !important;
+            }
+
+            .detail_card_wrapper {
+                width: 92% !important;
+                height: 480px !important;
+                max${HYPHEN}height: 85% !important;
+            }
+
+            .detail_hero_section {
+                height: 240px !important;
+                max${HYPHEN}height: 240px !important;
+                flex: 0 0 240px !important;
+            }
+
+            .detail_card_body {
+                height: 240px !important;
+                max${HYPHEN}height: 240px !important;
+                flex: 0 0 240px !important;
+            }
+        }
     `;
     document.head.appendChild(styleEl);
 }
