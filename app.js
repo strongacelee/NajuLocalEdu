@@ -1432,49 +1432,84 @@ function applyGlobalStyles() {
             transition: transform 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease !important;
         }
 
-        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 반응형: 상단 지도 + 하단 가로 수평 스크롤 패널 */
+        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 완벽 최적화: 수직 자율 스크롤 + 필터/팝업 50:50 완벽 보존 */
         @media screen and (orientation: portrait), screen and (max${HYPHEN}width: 900px) {
+            #appContainer {
+                height: auto !important;
+                min${HYPHEN}height: 100vh !important;
+                overflow${HYPHEN}y: auto !important;
+            }
+
             #mainHeader {
                 flex${HYPHEN}direction: column !important;
                 align${HYPHEN}items: flex${HYPHEN}start !important;
-                gap: 12px !important;
-                padding: 14px 20px !important;
+                gap: 10px !important;
+                padding: 12px 16px !important;
+            }
+
+            .logo_section {
+                width: 100% !important;
+            }
+
+            .title_group h1 {
+                font${HYPHEN}size: 19px !important;
+            }
+
+            .title_group .subtitle {
+                font${HYPHEN}size: 11px !important;
             }
 
             .header_controls {
                 width: 100% !important;
-                justify${HYPHEN}content: space${HYPHEN}between !important;
-                flex${HYPHEN}wrap: wrap !important;
-                gap: 10px !important;
+                flex${HYPHEN}direction: column !important;
+                align${HYPHEN}items: flex${HYPHEN}start !important;
+                gap: 8px !important;
+            }
+
+            .filter_section {
+                width: 100% !important;
+                overflow${HYPHEN}x: auto !important;
+                white${HYPHEN}space: nowrap !important;
+                padding${HYPHEN}bottom: 4px !important;
             }
 
             .grade_filters {
+                display: flex !important;
+                flex${HYPHEN}wrap: nowrap !important;
                 overflow${HYPHEN}x: auto !important;
-                max${HYPHEN}width: 100% !important;
-                padding${HYPHEN}bottom: 4px !important;
+                gap: 6px !important;
+                width: max${HYPHEN}content !important;
+            }
+
+            .filter_btn {
+                flex${HYPHEN}shrink: 0 !important;
+            }
+
+            .mode_section {
+                width: 100% !important;
+                justify${HYPHEN}content: space${HYPHEN}between !important;
             }
 
             #mainContent {
                 flex${HYPHEN}direction: column !important;
-                padding: 12px 14px 16px 14px !important;
+                padding: 10px 12px 24px 12px !important;
                 gap: 14px !important;
-                height: calc(100% ${HYPHEN} 130px) !important;
+                height: auto !important;
             }
 
             #mapWrapper {
-                flex: 1 1 58% !important;
                 width: 100% !important;
-                height: 58% !important;
-                min${HYPHEN}height: 280px !important;
+                height: 420px !important;
+                min${HYPHEN}height: 420px !important;
                 border${HYPHEN}radius: 20px !important;
+                flex: 0 0 420px !important;
             }
 
             #sidePanel {
-                flex: 0 0 auto !important;
                 width: 100% !important;
-                height: 230px !important;
-                max${HYPHEN}height: 230px !important;
+                height: auto !important;
                 border${HYPHEN}radius: 20px !important;
+                flex: 0 0 auto !important;
             }
 
             .activity_list {
@@ -1482,7 +1517,7 @@ function applyGlobalStyles() {
                 flex${HYPHEN}direction: row !important;
                 overflow${HYPHEN}x: auto !important;
                 overflow${HYPHEN}y: hidden !important;
-                padding: 10px 14px 16px 14px !important;
+                padding: 12px 14px 18px 14px !important;
                 gap: 12px !important;
                 scroll${HYPHEN}snap${HYPHEN}type: x mandatory !important;
             }
@@ -1497,22 +1532,35 @@ function applyGlobalStyles() {
                 box${HYPHEN}sizing: border${HYPHEN}box !important;
             }
 
+            /* 모바일 세로 팝업 창 비율 완벽 보존 (상단 사진 50% : 하단 조사 내용 50%) */
             .detail_card_wrapper {
                 width: 92% !important;
-                height: 480px !important;
-                max${HYPHEN}height: 85% !important;
+                max${HYPHEN}width: 440px !important;
+                height: 380px !important;
+                max${HYPHEN}height: 82% !important;
             }
 
             .detail_hero_section {
-                height: 240px !important;
-                max${HYPHEN}height: 240px !important;
-                flex: 0 0 240px !important;
+                height: 190px !important;
+                max${HYPHEN}height: 190px !important;
+                flex: 0 0 190px !important;
             }
 
             .detail_card_body {
-                height: 240px !important;
-                max${HYPHEN}height: 240px !important;
-                flex: 0 0 240px !important;
+                height: 190px !important;
+                max${HYPHEN}height: 190px !important;
+                flex: 0 0 190px !important;
+                padding: 14px 18px !important;
+                gap: 10px !important;
+            }
+
+            .detail_card_body h2 {
+                font${HYPHEN}size: 18px !important;
+            }
+
+            .detail_content_paper p {
+                font${HYPHEN}size: 13px !important;
+                line${HYPHEN}height: 1.5 !important;
             }
         }
     `;
