@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지역연계교육과정 운영 인포맵</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Outfit:wght@300;400;600;800&display=swap"
+        rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="appContainer">
+        <!-- 배경 데코레이션 요소 -->
+        <div class="bg_circle bg_circle1"></div>
+        <div class="bg_circle bg_circle2"></div>
+
+        <!-- 헤더 영역 -->
+        <header id="mainHeader">
+            <div class="logo_section">
+                <span class="logo_emoji">🗺️</span>
+                <div class="title_group">
+                    <h1>지역연계교육과정 운영 인포맵</h1>
+                    <p class="subtitle">우리 고장 나주시의 다양한 활동을 지도에 기록하고 함께 나누어 보아요</p>
+                </div>
+            </div>
+            <!-- 필터 및 모드 제어부 -->
+            <div class="header_controls">
+                <!-- 필터 제어부 -->
+                <div class="filter_section">
+                    <span class="filter_label">BIGBANG 필터</span>
+                    <div class="grade_filters" id="bigbangFilters">
+                        <button class="filter_btn active" data-bigbang="all"><span
+                                class="filter_icon">🌐</span>전체</button>
+                        <button class="filter_btn" data-bigbang="b_yuchoyium"><span class="filter_icon">🏫</span>B
+                            유초이음</button>
+                        <button class="filter_btn" data-bigbang="i_maeuljosa"><span class="filter_icon">🔍</span>I
+                            마을조사</button>
+                        <button class="filter_btn" data-bigbang="g_maeulyeongye"><span class="filter_icon">🤝</span>G
+                            마을연계</button>
+                        <button class="filter_btn" data-bigbang="b_gongdong"><span class="filter_icon">👥</span>B
+                            공동교육</button>
+                        <button class="filter_btn" data-bigbang="a_ai"><span class="filter_icon">🤖</span>A
+                            AI활용</button>
+                        <button class="filter_btn" data-bigbang="n_munjae"><span class="filter_icon">🧩</span>N
+                            문제해결</button>
+                        <button class="filter_btn" data-bigbang="g_governance"><span class="filter_icon">🏛️</span>G
+                            거버넌스</button>
+                    </div>
+                </div>
+                <!-- 모드 제어부 -->
+                <div class="mode_section">
+                    <button class="mode_toggle_btn active" id="modeUserBtn">🧒🏻 학생 모드</button>
+                    <button class="mode_toggle_btn" id="modeAdminBtn">🔑 관리자 모드</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <main id="mainContent">
+            <!-- 지도 영역 -->
+            <div id="mapWrapper">
+                <div id="map"></div>
+                <!-- 지도 로딩 스피너 -->
+                <div id="mapLoader" class="loader_overlay">
+                    <div class="spinner"></div>
+                    <p>나주시 정밀 백지도를 로딩하는 중입니다</p>
+                </div>
+                <!-- 맵 안내 문구 -->
+                <div id="mapGuideText" class="map_guide_badge">
+                    <span>💡 읍면동을 클릭하면 위치 좌표가 입력됩니다</span>
+                </div>
+
+                <!-- 활동 상세 정보 모달 (지도 영역 전용 롤오버 모달) -->
+                <div id="detailOverlay" class="detail_overlay_container">
+                    <div class="detail_card_wrapper">
+                        <button class="close_overlay_btn" id="closeOverlayBtn" title="닫기">✕</button>
+                        <div class="detail_hero_section">
+                            <span class="detail_sticker_badge" id="detailStickerBadge">🧩 N 문제해결</span>
+                            <div class="detail_image_container" id="detailImageContainer">
+                                <img id="detailImage" src="" alt="활동 사진">
+                                <button type="button" class="slide_btn prev_btn" id="slidePrevBtn">‹</button>
+                                <button type="button" class="slide_btn next_btn" id="slideNextBtn">›</button>
+                                <div class="slide_dots" id="slideDots"></div>
+                            </div>
+                        </div>
+                        <div class="detail_card_body">
+                            <h2 id="detailTitle">활동 이름</h2>
+                            <div class="detail_content_box">
+                                <div class="detail_section_header">
+                                    <span class="detail_section_icon">📝</span>
+                                    <h3 class="detail_section_title">소개</h3>
+                                </div>
+                                <div class="detail_content_paper">
+                                    <p id="detailContent">활동 상세 내용이 여기에 표시됩니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 사이드 패널 영역 -->
+            <aside id="sidePanel">
+                <!-- 탭 메뉴 -->
+                <div class="panel_tabs">
+                    <button class="tab_btn active" id="tabListBtn">활동 목록</button>
+                    <button class="tab_btn" id="tabAddBtn">활동 등록</button>
+                </div>
+
+                <!-- 탭 콘텐츠: 목록 뷰 -->
+                <div class="tab_content active" id="tabList">
+                    <div class="list_header">
+                        <span class="count_label">등록된 활동: <strong id="activityCount">0</strong>개</span>
+                    </div>
+                    <div class="activity_list" id="activityList">
+                        <div class="empty_message">
+                            <p>아직 등록된 활동이 없습니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 탭 콘텐츠: 등록 폼 -->
+                <div class="tab_content" id="tabAdd">
+                    <form id="activityForm" onsubmit="return false;">
+                        <input type="hidden" id="inputLat">
+                        <input type="hidden" id="inputLng">
+
+                        <div class="form_group">
+                            <label>선택된 위치</label>
+                            <div class="selected_coords_box" id="coordsDisplay">
+                                지도를 클릭하여 위치를 지정해 주세요.
+                            </div>
+                        </div>
+
+                        <div class="form_group">
+                            <label for="inputTitle">활동 장소 및 명칭</label>
+                            <input type="text" id="inputTitle" placeholder="예: 금성관, 빛가람호수공원" required>
+                        </div>
+
+                        <div class="form_group">
+                            <label>BIGBANG 스티커 선택</label>
+                            <div class="sticker_selector" id="stickerSelector">
+                                <div class="sticker_option active" data-sticker="b_yuchoyium">
+                                    <span class="sticker_emoji">🏫</span>
+                                    <span class="sticker_text">B 유초이음</span>
+                                </div>
+                                <div class="sticker_option" data-sticker="i_maeuljosa">
+                                    <span class="sticker_emoji">🔍</span>
+                                    <span class="sticker_text">I 마을조사</span>
+                                </div>
+                                <div class="sticker_option" data-sticker="g_maeulyeongye">
+                                    <span class="sticker_emoji">🤝</span>
+                                    <span class="sticker_text">G 마을연계</span>
+                                </div>
+                                <div class="sticker_option" data-sticker="b_gongdong">
+                                    <span class="sticker_emoji">👥</span>
+                                    <span class="sticker_text">B 공동교육</span>
+                                </div>
+                                <div class="sticker_option" data-sticker="a_ai">
+                                    <span class="sticker_emoji">🤖</span>
+                                    <span class="sticker_text">A AI활용</span>
+                                </div>
+                                <div class="sticker_option" data-sticker="n_munjae">
+                                    <span class="sticker_emoji">🧩</span>
+                                    <span class="sticker_text">N 문제해결</span>
+                                </div>
+                                <div class="sticker_option" data-sticker="g_governance">
+                                    <span class="sticker_emoji">🏛️</span>
+                                    <span class="sticker_text">G 거버넌스</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form_group">
+                            <label for="inputContent">소개</label>
+                            <textarea id="inputContent" rows="4" placeholder="어떤 활동을 했는지, 무엇을 배웠는지 기록해 보아요"
+                                required></textarea>
+                        </div>
+
+                        <div class="form_group">
+                            <label>사진 (여러 장 가능)</label>
+                            <div class="image_upload_container">
+                                <label for="inputImage" class="upload_trigger">
+                                    <span class="upload_icon">📸</span>
+                                    <span class="upload_text">사진 올리기</span>
+                                </label>
+                                <input type="file" id="inputImage" accept="image/*" multiple style="display: none;">
+                            </div>
+                            <div class="image_preview_list" id="imagePreviewList"></div>
+                        </div>
+
+                        <button type="submit" class="submit_btn" id="saveBtn">지도에 등록하기</button>
+                    </form>
+                </div>
+            </aside>
+        </main>
+
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Turf.js GIS 라이브러리 추가 -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <!-- 나주시 지리 경계 데이터 로드 -->
+    <script src="naju_geojson.js?v=20260811"></script>
+    <!-- Custom JS -->
+    <script src="app.js?v=20260811_v6"></script>
+</body>
+
+</html>
