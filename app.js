@@ -63,6 +63,9 @@ function initApp() {
     // 이벤트 리스너 설정
     setupEventListeners();
 
+    // 모바일 구글맵 스타일 바텀시트 터치 연동 설정
+    setupBottomSheet();
+
     // 지도 데이터 로드
     fetchNajuBoundaries();
 
@@ -1018,21 +1021,21 @@ function applyGlobalStyles() {
 
         .detail_overlay_container {
             display: none;
-            position: absolute !important;
+            position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background: rgba(15, 23, 42, 0.45) !important;
-            backdrop${HYPHEN}filter: blur(10px) !important;
-            webkit${HYPHEN}backdrop${HYPHEN}filter: blur(10px) !important;
-            z${HYPHEN}index: 1000 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: rgba(15, 23, 42, 0.55) !important;
+            backdrop${HYPHEN}filter: blur(12px) !important;
+            webkit${HYPHEN}backdrop${HYPHEN}filter: blur(12px) !important;
+            z${HYPHEN}index: 999999 !important;
             align${HYPHEN}items: center;
             justify${HYPHEN}content: center;
-            padding: 20px;
+            padding: 16px;
             box${HYPHEN}sizing: border${HYPHEN}box;
             opacity: 0;
-            border${HYPHEN}radius: 24px;
+            border${HYPHEN}radius: 0 !important;
             transition: opacity 0.3s cubic${HYPHEN}bezier(0.16, 1, 0.3, 1);
             pointer${HYPHEN}events: auto;
         }
@@ -1435,19 +1438,32 @@ function applyGlobalStyles() {
             transition: transform 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease !important;
         }
 
-        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 완벽 최적화: 수직 자율 스크롤 + 필터/팝업 50:50 완벽 보존 */
+        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 완벽 최적화: 수직 바닥 끝까지 자율 스크롤 해제 */
+        html, body {
+            min${HYPHEN}height: 100vh !important;
+            height: auto !important;
+            overflow${HYPHEN}y: auto !important;
+        }
+
+        /* 모바일 바텀 시트 손잡이 바 기본 숨김 */
+        .bottom_sheet_handle {
+            display: none;
+        }
+
+        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 구글맵/카카오맵 스타일 네이티브 바텀 시트 적용 */
         @media screen and (orientation: portrait), screen and (max${HYPHEN}width: 900px) {
             #appContainer {
-                height: auto !important;
-                min${HYPHEN}height: 100vh !important;
-                overflow${HYPHEN}y: auto !important;
+                height: 100vh !important;
+                overflow: hidden !important;
+                position: relative !important;
+                padding${HYPHEN}bottom: 0 !important;
             }
 
             #mainHeader {
                 flex${HYPHEN}direction: column !important;
                 align${HYPHEN}items: flex${HYPHEN}start !important;
-                gap: 10px !important;
-                padding: 12px 16px !important;
+                gap: 8px !important;
+                padding: 10px 14px !important;
             }
 
             .logo_section {
@@ -1455,7 +1471,7 @@ function applyGlobalStyles() {
             }
 
             .title_group h1 {
-                font${HYPHEN}size: 19px !important;
+                font${HYPHEN}size: 18px !important;
             }
 
             .title_group .subtitle {
@@ -1466,14 +1482,14 @@ function applyGlobalStyles() {
                 width: 100% !important;
                 flex${HYPHEN}direction: column !important;
                 align${HYPHEN}items: flex${HYPHEN}start !important;
-                gap: 8px !important;
+                gap: 6px !important;
             }
 
             .filter_section {
                 width: 100% !important;
                 overflow${HYPHEN}x: auto !important;
                 white${HYPHEN}space: nowrap !important;
-                padding${HYPHEN}bottom: 4px !important;
+                padding${HYPHEN}bottom: 2px !important;
             }
 
             .grade_filters {
@@ -1488,50 +1504,129 @@ function applyGlobalStyles() {
                 flex${HYPHEN}shrink: 0 !important;
             }
 
+            /* 세로모드에서 학생모드 / 관리자모드 섹션 깔끔하게 숨김 */
             .mode_section {
-                width: 100% !important;
-                justify${HYPHEN}content: space${HYPHEN}between !important;
+                display: none !important;
             }
 
             #mainContent {
                 flex${HYPHEN}direction: column !important;
-                padding: 10px 12px 24px 12px !important;
-                gap: 14px !important;
-                height: auto !important;
+                padding: 0 !important;
+                gap: 0 !important;
+                height: calc(100vh ${HYPHEN} 85px) !important;
+                position: relative !important;
             }
 
             #mapWrapper {
                 width: 100% !important;
-                height: 420px !important;
-                min${HYPHEN}height: 420px !important;
-                border${HYPHEN}radius: 20px !important;
-                flex: 0 0 420px !important;
+                height: 100% !important;
+                min${HYPHEN}height: 100% !important;
+                border${HYPHEN}radius: 0 !important;
+                flex: 1 1 100% !important;
+            }
+
+            .bottom_sheet_handle {
+                display: flex !important;
+                flex${HYPHEN}direction: column !important;
+                align${HYPHEN}items: center !important;
+                justify${HYPHEN}content: center !important;
+                padding: 10px 16px 8px 16px !important;
+                cursor: pointer !important;
+                background: #ffffff !important;
+                border${HYPHEN}radius: 28px 28px 0 0 !important;
+                touch${HYPHEN}action: none !important;
+                user${HYPHEN}select: none !important;
+                box${HYPHEN}shadow: 0 ${HYPHEN}4px 12px rgba(0, 0, 0, 0.05);
+                z${HYPHEN}index: 100 !important;
+                position: relative !important;
+                flex${HYPHEN}shrink: 0 !important;
+            }
+
+            .handle_pill {
+                width: 44px;
+                height: 5px;
+                background: #cbd5e1;
+                border${HYPHEN}radius: 10px;
+                margin${HYPHEN}bottom: 6px;
+            }
+
+            .handle_info {
+                display: flex;
+                align${HYPHEN}items: center;
+                justify${HYPHEN}content: space${HYPHEN}between;
+                width: 100%;
+            }
+
+            .handle_hint {
+                font${HYPHEN}size: 13px;
+                font${HYPHEN}weight: 700;
+                color: #2563eb;
+            }
+
+            .handle_close_btn {
+                font${HYPHEN}size: 12px;
+                font${HYPHEN}weight: 700;
+                color: #ef4444;
+                background: #fee2e2;
+                padding: 4px 10px;
+                border${HYPHEN}radius: 12px;
+                cursor: pointer;
+            }
+
+            /* 세로모드에서 중복 탭 타이틀 "활동 목록" 깔끔하게 숨김 처리 */
+            .panel_tabs #tabListBtn {
+                display: none !important;
             }
 
             #sidePanel {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
                 width: 100% !important;
-                height: auto !important;
-                border${HYPHEN}radius: 20px !important;
-                flex: 0 0 auto !important;
+                z${HYPHEN}index: 9999 !important;
+                background: #ffffff !important;
+                border${HYPHEN}radius: 28px 28px 0 0 !important;
+                box${HYPHEN}shadow: 0 ${HYPHEN}10px 40px rgba(0, 0, 0, 0.25) !important;
+                transition: height 0.3s cubic${HYPHEN}bezier(0.16, 1, 0.3, 1) !important;
+                display: flex !important;
+                flex${HYPHEN}direction: column !important;
+                overflow: hidden !important;
+            }
+
+            /* 3단계 바텀시트 고도 상태 */
+            #sidePanel.collapsed {
+                height: 54px !important;
+            }
+
+            #sidePanel.half {
+                height: 40vh !important;
+            }
+
+            #sidePanel.expanded {
+                height: 82vh !important;
+            }
+
+            .tab_content {
+                flex: 1 !important;
+                overflow${HYPHEN}y: auto !important;
+                ${HYPHEN}webkit${HYPHEN}overflow${HYPHEN}scrolling: touch !important;
             }
 
             .activity_list {
                 display: flex !important;
-                flex${HYPHEN}direction: row !important;
-                overflow${HYPHEN}x: auto !important;
-                overflow${HYPHEN}y: hidden !important;
-                padding: 12px 14px 18px 14px !important;
+                flex${HYPHEN}direction: column !important;
+                overflow${HYPHEN}y: auto !important;
+                padding: 12px 16px 35px 16px !important;
                 gap: 12px !important;
-                scroll${HYPHEN}snap${HYPHEN}type: x mandatory !important;
+                height: 100% !important;
             }
 
             .activity_card {
-                width: 260px !important;
-                min${HYPHEN}width: 260px !important;
-                max${HYPHEN}width: 260px !important;
+                width: 100% !important;
+                min${HYPHEN}width: 100% !important;
+                max${HYPHEN}width: 100% !important;
+                height: auto !important;
                 flex${HYPHEN}shrink: 0 !important;
-                margin${HYPHEN}bottom: 0 !important;
-                scroll${HYPHEN}snap${HYPHEN}align: start !important;
                 box${HYPHEN}sizing: border${HYPHEN}box !important;
             }
 
@@ -3125,4 +3220,89 @@ function hideMapLoader() {
             loader.style.display = "none";
         }, 400);
     }
+}
+
+// 📱 모바일 구글맵/카카오맵 스타일 3단계 바텀시트 손잡이 바 & 터치 인터랙션 연동
+function setupBottomSheet() {
+    const handle = document.getElementById("bottomSheetHandle");
+    const sidePanel = document.getElementById("sidePanel");
+    const hintText = document.getElementById("handleHintText");
+    const closeBtn = document.getElementById("handleCloseBtn");
+    if (!handle || !sidePanel) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    function toggleState() {
+        if (sidePanel.classList.contains("expanded")) {
+            sidePanel.className = "half";
+            if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
+        } else if (sidePanel.classList.contains("half")) {
+            sidePanel.className = "expanded";
+            if (hintText) hintText.textContent = "▼ 터치하여 시트 접기";
+        } else {
+            sidePanel.className = "half";
+            if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
+        }
+    }
+
+    // 손잡이 바 클릭 시 토글
+    handle.addEventListener("click", () => {
+        if (isDragging) return;
+        toggleState();
+    });
+
+    // 닫기 뱃지 직접 클릭 시 강제 접기
+    if (closeBtn) {
+        closeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (sidePanel.classList.contains("expanded")) {
+                sidePanel.className = "half";
+                if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
+            } else {
+                sidePanel.className = "collapsed";
+                if (hintText) hintText.textContent = "▲ 터치하여 펼치기 / 접기";
+            }
+        });
+    }
+
+    // 손가락 터치 드래그 상하 스와이프 연동
+    handle.addEventListener("touchstart", (e) => {
+        startY = e.touches[0].clientY;
+        isDragging = false;
+    }, { passive: true });
+
+    handle.addEventListener("touchmove", (e) => {
+        currentY = e.touches[0].clientY;
+        let deltaY = currentY - startY;
+        if (Math.abs(deltaY) > 8) {
+            isDragging = true;
+        }
+    }, { passive: true });
+
+    handle.addEventListener("touchend", () => {
+        if (!isDragging) return;
+        let deltaY = currentY - startY;
+        if (deltaY < -35) {
+            // 위로 스와이프 올림
+            if (sidePanel.classList.contains("collapsed")) {
+                sidePanel.className = "half";
+                if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
+            } else {
+                sidePanel.className = "expanded";
+                if (hintText) hintText.textContent = "▼ 터치하여 시트 접기";
+            }
+        } else if (deltaY > 35) {
+            // 아래로 스와이프 내림 (접기)
+            if (sidePanel.classList.contains("expanded")) {
+                sidePanel.className = "half";
+                if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
+            } else {
+                sidePanel.className = "collapsed";
+                if (hintText) hintText.textContent = "▲ 터치하여 펼치기 / 접기";
+            }
+        }
+        isDragging = false;
+    });
 }
