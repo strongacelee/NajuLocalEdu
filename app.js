@@ -1524,24 +1524,26 @@ function setupTouchZoomSlider() {
             const track = document.createElement("div");
             track.className = "zoom_slider_track";
 
-            // 터치 스크롤 레인지 슬라이더
+            // 터치 스크롤 레인지 슬라이더 (정수 줌 step 1 적용으로 소수점 타일 계산 에러 차단)
             const slider = document.createElement("input");
             slider.type = "range";
             slider.className = "zoom_range_input";
             slider.min = map.getMinZoom();
             slider.max = map.getMaxZoom();
-            slider.step = 0.1;
-            slider.value = map.getZoom();
+            slider.step = 1;
+            slider.value = Math.round(map.getZoom());
 
-            // 터치/드래그 스크롤 시 지도 줌이 미려하고 부드럽게 무단계 갱신
+            // 터치/드래그 스크롤 시 정수 줌으로 안전하게 갱신
             slider.addEventListener("input", (e) => {
-                const newZoom = parseFloat(e.target.value);
-                map.setZoom(newZoom, { animate: true });
+                const newZoom = Math.round(parseFloat(e.target.value));
+                if (map.getZoom() !== newZoom) {
+                    map.setZoom(newZoom, { animate: true });
+                }
             });
 
-            // 지도 상에서 핀치 줌 등 줌이 일어날 때 슬라이더 노브 위치 실시간 동기화
+            // 지도 상에서 줌이 일어날 때 슬라이더 노브 위치 정수형 동기화
             map.on("zoom zoomend", () => {
-                slider.value = map.getZoom();
+                slider.value = Math.round(map.getZoom());
             });
 
             // 축소 단추 (－)
