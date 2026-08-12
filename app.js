@@ -1462,34 +1462,27 @@ function applyGlobalStyles() {
             #mainHeader {
                 flex${HYPHEN}direction: column !important;
                 align${HYPHEN}items: flex${HYPHEN}start !important;
-                gap: 8px !important;
-                padding: 10px 14px !important;
+                gap: 0 !important;
+                padding: 8px 12px 6px 12px !important;
             }
 
-            .logo_section {
-                width: 100% !important;
-            }
-
-            .title_group h1 {
-                font${HYPHEN}size: 18px !important;
-            }
-
-            .title_group .subtitle {
-                font${HYPHEN}size: 11px !important;
+            /* 세로모드에서 빅뱅 필터를 제외한 로고 및 메인 타이틀, 필터 라벨 깔끔 숨김 */
+            .logo_section, .filter_label {
+                display: none !important;
             }
 
             .header_controls {
                 width: 100% !important;
                 flex${HYPHEN}direction: column !important;
                 align${HYPHEN}items: flex${HYPHEN}start !important;
-                gap: 6px !important;
+                gap: 0 !important;
             }
 
             .filter_section {
                 width: 100% !important;
                 overflow${HYPHEN}x: auto !important;
                 white${HYPHEN}space: nowrap !important;
-                padding${HYPHEN}bottom: 2px !important;
+                padding${HYPHEN}bottom: 0 !important;
             }
 
             .grade_filters {
@@ -1513,7 +1506,7 @@ function applyGlobalStyles() {
                 flex${HYPHEN}direction: column !important;
                 padding: 0 !important;
                 gap: 0 !important;
-                height: calc(100vh ${HYPHEN} 85px) !important;
+                height: calc(100vh ${HYPHEN} 52px) !important;
                 position: relative !important;
             }
 
