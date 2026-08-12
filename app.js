@@ -228,14 +228,30 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
         });
 }
 
-// Firebase 클라우드 데이터베이스에 실시간 영구 동기화 전송
-function syncToFirebaseCloud() {
+// Firebase 클라우드 데이터베이스에 실시간 영구 동기화 전송 (권한 감지 포함)
+function syncToFirebaseCloud(onSuccess, onError) {
     if (!activeFirebaseUrl) return;
     fetch(activeFirebaseUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(state.activities)
-    }).catch(err => console.log("Firebase sync error", err));
+    })
+    .then(res => {
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+                console.warn("Firebase DB 규칙 거부: .read: true, .write: true 설정 필요");
+                if (onError) onError("permission_denied");
+            } else {
+                if (onError) onError("http_error");
+            }
+        } else {
+            if (onSuccess) onSuccess();
+        }
+    })
+    .catch(err => {
+        console.log("Firebase sync error", err);
+        if (onError) onError("network_error");
+    });
 }
 
 // 현재 내 컴퓨터(localStorage)의 모든 등록 이미지 및 활동 내역을 파이어베이스 클라우드 DB로 강제 전송 동기화
@@ -246,10 +262,20 @@ function uploadLocalDataToFirebase() {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
                 state.activities = parsed;
-                syncToFirebaseCloud();
-                updateActivityList();
-                if (state.map) renderActivitiesOnMap();
-                showToast("☁️ 내 컴퓨터의 등록 사진과 활동 내역이 구글 클라우드 DB에 성공적으로 전송되었습니다!");
+                syncToFirebaseCloud(
+                    () => {
+                        updateActivityList();
+                        if (state.map) renderActivitiesOnMap();
+                        showToast("☁️ PC의 최신 데이터가 클라우드 DB에 동기화되었습니다! 태블릿에서 새로고침하세요.");
+                    },
+                    (errType) => {
+                        if (errType === "permission_denied") {
+                            showToast("⚠️ Firebase 콘솔 DB 규칙(.read: true, .write: true) 해제가 필요합니다.");
+                        } else {
+                            showToast("⚠️ 네트워크 동기화 전송 실패. 파이어베이스 설정을 확인해 주세요.");
+                        }
+                    }
+                );
                 return;
             }
         } catch (e) {}
@@ -1341,6 +1367,7 @@ function updateModeUI() {
     const adminBtn = document.getElementById("modeAdminBtn");
     const tabAddBtn = document.getElementById("tabAddBtn");
     const mapInst = document.getElementById("mapInstruction");
+    const syncCloudBtn = document.getElementById("syncCloudBtn");
     
     // 1. 모드 토글 스위치 액티브 스타일 제어
     if (state.userMode === "admin") {
@@ -1357,8 +1384,11 @@ function updateModeUI() {
             boxShadow: "none"
         });
         
-        // 관리자는 활동 등록 탭 노출
+        // 관리자는 활동 등록 탭 및 클라우드 동기화 도구 노출
         applyStyles(tabAddBtn, { display: "block" });
+        if (syncCloudBtn) {
+            applyStyles(syncCloudBtn, { display: "inline-flex" });
+        }
         if (mapInst) {
             mapInst.innerHTML = "<p>💡 지도의 특정 위치를 클릭하면 새로운 활동을 등록할 수 있습니다.</p>";
         }
@@ -1376,8 +1406,11 @@ function updateModeUI() {
             boxShadow: "none"
         });
         
-        // 학생은 활동 등록 탭 완벽 숨김
+        // 학생은 활동 등록 탭 및 클라우드 동기화 버튼 완벽 숨김
         applyStyles(tabAddBtn, { display: "none" });
+        if (syncCloudBtn) {
+            applyStyles(syncCloudBtn, { display: "none" });
+        }
         if (mapInst) {
             mapInst.innerHTML = "<p>💡 지도 위의 활동 스티커를 클릭하면 자세한 내용을 볼 수 있습니다.</p>";
         }
