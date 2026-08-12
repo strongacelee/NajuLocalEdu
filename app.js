@@ -150,7 +150,7 @@ function loadActivities() {
     setInterval(fetchActivitiesFromFirebase, 12000);
 }
 
-// Firebase 클라우드 DB 데이터 동기화 함수
+// Firebase 클라우드 DB 데이터 동기화 및 스마트 병합 마이그레이션 함수
 function fetchActivitiesFromFirebase() {
     fetch(FIREBASE_API_URL)
         .then(response => {
@@ -158,16 +158,48 @@ function fetchActivitiesFromFirebase() {
             return response.json();
         })
         .then(data => {
-            if (data && Array.isArray(data) && data.length > 0) {
-                state.activities = data.map(act => {
+            let cloudActivities = Array.isArray(data) ? data : [];
+            let localSaved = localStorage.getItem("naju_activities");
+            let localActivities = [];
+            
+            if (localSaved) {
+                try {
+                    let parsed = JSON.parse(localSaved);
+                    if (Array.isArray(parsed)) localActivities = parsed;
+                } catch(e) {}
+            }
+
+            // 내 컴퓨터에 새로 등록된 활동(이미지 포함)이 있는데 클라우드 DB에 누락된 경우 병합
+            let mergedMap = new Map();
+            
+            // 1. 클라우드 데이터 먼저 맵에 탑재
+            cloudActivities.forEach(act => {
+                if (act && act.id) mergedMap.set(act.id, act);
+            });
+            
+            // 2. 내 컴퓨터 로컬 데이터(등록 사진 포함)로 덮어쓰기 및 병합 추가
+            localActivities.forEach(act => {
+                if (act && act.id) {
+                    mergedMap.set(act.id, act);
+                }
+            });
+
+            const mergedList = Array.from(mergedMap.values());
+            
+            if (mergedList.length > 0) {
+                state.activities = mergedList.map(act => {
                     let sticker = act.sticker;
                     if (!STICKER_TYPES[sticker]) sticker = "b_yuchoyium";
                     return { ...act, sticker: sticker };
                 });
-                // 로컬 스토리지 신규 갱신
+
+                // 병합된 최신 데이터를 로컬스토리지에 보관
                 try {
                     localStorage.setItem("naju_activities", JSON.stringify(state.activities));
                 } catch (e) {}
+
+                // 만약 내 컴퓨터의 기존 등록 이미지 데이터가 클라우드보다 신규/우선인 경우 클라우드 DB로 자동 업로드 동기화!
+                syncToFirebaseCloud();
                 
                 // 화면 실시간 마커 및 목록 동기화
                 updateActivityList();
