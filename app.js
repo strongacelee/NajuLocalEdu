@@ -1365,10 +1365,11 @@ function applyGlobalStyles() {
         }
 
         /* 🦚 동적 1개~5개 둥근 공작새 부채 (Peacock Arc) 3D 호버 및 거미줄 복귀 0.2초 속도 통일 */
+        /* 🦚 동적 1개~5개 둥근 공작새 부채 (Peacock Arc) 3D 호버 및 거미줄 복귀 0.2초 속도 통일 (20% 확대 적용) */
         .peacock_cluster_wrapper {
             position: relative;
-            width: 56px;
-            height: 56px;
+            width: 68px;
+            height: 68px;
             display: flex;
             align${HYPHEN}items: center;
             justify${HYPHEN}content: center;
@@ -1377,13 +1378,13 @@ function applyGlobalStyles() {
 
         .peacock_dynamic_card {
             position: absolute;
-            top: 6px;
-            left: 6px;
-            width: 44px;
-            height: 44px;
+            top: 8px;
+            left: 8px;
+            width: 52px;
+            height: 52px;
             border${HYPHEN}radius: 50%;
             background: #ffffff;
-            border: 2.5px solid #2563eb;
+            border: 2.8px solid #2563eb;
             box${HYPHEN}shadow: 0 8px 22px rgba(0,0,0,0.3);
             display: flex;
             align${HYPHEN}items: center;
@@ -1404,11 +1405,11 @@ function applyGlobalStyles() {
 
         .peacock_cluster_main {
             position: relative;
-            width: 52px;
-            height: 52px;
+            width: 62px;
+            height: 62px;
             border${HYPHEN}radius: 50%;
             background: #ffffff;
-            border: 3.5px solid #2563eb;
+            border: 4px solid #2563eb;
             box${HYPHEN}shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
             display: flex;
             align${HYPHEN}items: center;
@@ -2396,16 +2397,16 @@ function createMarkerForActivity(act) {
         innerContent = `<span style="font-size: 20px;">${sticker.emoji}</span>`;
     }
 
-    // 대표 이미지 썸네일과 스티커 미니 코너 뱃지가 결합된 액자형 사진 마커 핀
+    // 대표 이미지 썸네일과 스티커 미니 코너 뱃지가 결합된 액자형 사진 마커 핀 (20% 확대 적용)
     const iconHtml = `
         <div class="custom_marker_pin" style="
             position: relative;
-            width: 48px;
-            height: 48px;
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
             background: #ffffff;
-            border: 3px solid ${sticker.color};
-            box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+            border: 3.5px solid ${sticker.color};
+            box-shadow: 0 10px 24px rgba(0,0,0,0.25);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -2413,21 +2414,21 @@ function createMarkerForActivity(act) {
             transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         ">
             ${innerContent}
-            <!-- 스티커 카테고리 미니 코너 뱃지 -->
+            <!-- 스티커 카테고리 미니 코너 뱃지 (20% 확대) -->
             <div style="
                 position: absolute;
-                bottom: -2px;
-                right: -2px;
-                width: 20px;
-                height: 20px;
+                bottom: -3px;
+                right: -3px;
+                width: 24px;
+                height: 24px;
                 border-radius: 50%;
                 background: #ffffff;
-                border: 1.5px solid ${sticker.color};
+                border: 2px solid ${sticker.color};
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 11px;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+                font-size: 13px;
+                box-shadow: 0 3px 8px rgba(0,0,0,0.2);
                 z-index: 5;
             ">${sticker.emoji}</div>
         </div>
@@ -2436,8 +2437,8 @@ function createMarkerForActivity(act) {
     const customIcon = L.divIcon({
         html: iconHtml,
         className: "custom_leaflet_marker",
-        iconSize: [48, 48],
-        iconAnchor: [24, 24]
+        iconSize: [58, 58],
+        iconAnchor: [29, 29]
     });
 
     const marker = L.marker([act.lat, act.lng], { icon: customIcon });
@@ -2656,18 +2657,18 @@ function resetToInitialState() {
 
     if (state.map) {
         if (state.umdLayer && typeof state.umdLayer.getBounds === "function" && state.umdLayer.getBounds().isValid()) {
-            // 나주시 정밀 경계선 박스에 맞추어 화면 정중앙으로 비행 포커싱
+            // 나주시 정밀 경계선 박스에 맞추어 화면 정중앙으로 부드럽고 빠른 비행 포커싱 (0.5초)
             state.map.flyToBounds(state.umdLayer.getBounds(), {
                 padding: [40, 40],
                 maxZoom: 11.5,
                 animate: true,
-                duration: 1.6
+                duration: 0.5
             });
         } else {
-            // 나주시 대표 정중앙 중심 좌표로 비행 이동
+            // 나주시 대표 정중앙 중심 좌표로 빠른 비행 이동 (0.5초)
             state.map.flyTo([35.0158, 126.7815], 11, {
                 animate: true,
-                duration: 1.6
+                duration: 0.5
             });
         }
     }
