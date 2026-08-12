@@ -22,6 +22,7 @@ const BACKUP_IMAGE = "https://images.unsplash.com/photo" + HYPHEN + "16180051823
 let state = {
     map: null,
     umdLayer: null,
+    markerClusterGroup: null,
     activities: [],
     markers: [],
     selectedLat: null,
@@ -49,22 +50,22 @@ window.addEventListener("DOMContentLoaded", () => {
 function initApp() {
     // 로컬 스토리지에서 기존 활동 데이터 로드
     loadActivities();
-    
+
     // UI 요소 스타일 동적 적용
     applyGlobalStyles();
-    
+
     // 초기 탭 상태 설정 (활동 목록 탭 기본 활성화 및 등록 폼 숨김)
     switchTab("list");
-    
+
     // 지도 초기화
     initMap();
-    
+
     // 이벤트 리스너 설정
     setupEventListeners();
-    
+
     // 지도 데이터 로드
     fetchNajuBoundaries();
-    
+
     // 권한 모드 UI 갱신 초기 적용
     updateModeUI();
 
@@ -150,7 +151,7 @@ function loadActivities() {
 
     // 2차: 구글 Firebase 클라우드 DB에서 실시간 전 세계 최신 데이터 동기화 (리전 자동 탐색)
     fetchActivitiesFromFirebase();
-    
+
     // 3차: 12초 주기 백그라운드 실시간 클라우드 동기화 폴링 시작
     setInterval(() => fetchActivitiesFromFirebase(), 12000);
 }
@@ -158,7 +159,7 @@ function loadActivities() {
 // Firebase 클라우드 DB 데이터 동기화 함수 (리전 자동 감지 및 로컬 이미지 우선 보존)
 function fetchActivitiesFromFirebase(urlIndex = 0) {
     if (urlIndex >= FIREBASE_API_URLS.length) return;
-    
+
     const targetUrl = FIREBASE_API_URLS[urlIndex];
     fetch(targetUrl)
         .then(response => {
@@ -170,22 +171,22 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
             let cloudActivities = Array.isArray(data) ? data : [];
             let localSaved = localStorage.getItem("naju_activities");
             let localActivities = [];
-            
+
             if (localSaved) {
                 try {
                     let parsed = JSON.parse(localSaved);
                     if (Array.isArray(parsed)) localActivities = parsed;
-                } catch(e) {}
+                } catch (e) { }
             }
 
             // 내 컴퓨터 로컬 데이터와 클라우드 데이터 병합 (내 컴퓨터의 등록 이미지 우선 반영)
             let mergedMap = new Map();
-            
+
             // 1. 클라우드 데이터 먼저 맵에 탑재
             cloudActivities.forEach(act => {
                 if (act && act.id) mergedMap.set(act.id, act);
             });
-            
+
             // 2. 내 컴퓨터 로컬 데이터(등록 사진 포함)로 우선 반영
             localActivities.forEach(act => {
                 if (act && act.id) {
@@ -194,7 +195,7 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
             });
 
             const mergedList = Array.from(mergedMap.values());
-            
+
             if (mergedList.length > 0) {
                 state.activities = mergedList.map(act => {
                     let sticker = act.sticker;
@@ -205,11 +206,11 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
                 // 병합된 최신 데이터를 로컬스토리지에 보관
                 try {
                     localStorage.setItem("naju_activities", JSON.stringify(state.activities));
-                } catch (e) {}
+                } catch (e) { }
 
                 // 구글 Firebase 클라우드 DB로 동기화 업로드 전송
                 syncToFirebaseCloud();
-                
+
                 // 화면 실시간 마커 및 목록 동기화
                 updateActivityList();
                 if (state.map) {
@@ -236,22 +237,22 @@ function syncToFirebaseCloud(onSuccess, onError) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(state.activities)
     })
-    .then(res => {
-        if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-                console.warn("Firebase DB 규칙 거부: .read: true, .write: true 설정 필요");
-                if (onError) onError("permission_denied");
+        .then(res => {
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    console.warn("Firebase DB 규칙 거부: .read: true, .write: true 설정 필요");
+                    if (onError) onError("permission_denied");
+                } else {
+                    if (onError) onError("http_error");
+                }
             } else {
-                if (onError) onError("http_error");
+                if (onSuccess) onSuccess();
             }
-        } else {
-            if (onSuccess) onSuccess();
-        }
-    })
-    .catch(err => {
-        console.log("Firebase sync error", err);
-        if (onError) onError("network_error");
-    });
+        })
+        .catch(err => {
+            console.log("Firebase sync error", err);
+            if (onError) onError("network_error");
+        });
 }
 
 // 현재 내 컴퓨터(localStorage)의 모든 등록 이미지 및 활동 내역을 파이어베이스 클라우드 DB로 강제 전송 동기화
@@ -278,7 +279,7 @@ function uploadLocalDataToFirebase() {
                 );
                 return;
             }
-        } catch (e) {}
+        } catch (e) { }
     }
     showToast("동기화할 로컬 데이터가 없습니다.");
 }
@@ -299,7 +300,7 @@ function saveActivities() {
     } catch (e) {
         console.error("로컬 스토리지 저장 실패", e);
     }
-    
+
     // 구글 Firebase 클라우드 DB에 0.1초 실시간 동기화 전송
     syncToFirebaseCloud();
 
@@ -324,7 +325,7 @@ function applyGlobalStyles() {
     const main = document.getElementById("mainContent");
     const mapWrapper = document.getElementById("mapWrapper");
     const sidePanel = document.getElementById("sidePanel");
-    
+
     // 전체 컨테이너 배경 및 레이아웃
     applyStyles(container, {
         width: "100vw",
@@ -481,7 +482,7 @@ function applyGlobalStyles() {
 
     // 활성화 탭 버튼 초기 스타일 설정
     updateTabBtnStyles();
-    
+
     // 모달 팝업 레이아웃 초기화
     const detailOverlay = document.getElementById("detailOverlay");
     applyStyles(detailOverlay, {
@@ -506,7 +507,9 @@ function applyGlobalStyles() {
         background: "rgba(255, 255, 255, 0.9)",
         backdropFilter: "blur(20px)",
         webkitBackdropFilter: "blur(20px)",
-        width: "480px",
+        width: "500px",
+        height: "540px",
+        maxHeight: "88%",
         borderRadius: "28px",
         border: "1px solid rgba(255, 255, 255, 0.7)",
         boxShadow: "0 24px 60px rgba(0, 0, 0, 0.15)",
@@ -1035,14 +1038,15 @@ function applyGlobalStyles() {
 
         .detail_card_wrapper {
             width: 88%;
-            max${HYPHEN}width: 540px;
-            max${HYPHEN}height: 90%;
+            max${HYPHEN}width: 520px;
+            height: 520px !important;
+            max${HYPHEN}height: 85% !important;
             background: #ffffff;
             border${HYPHEN}radius: 24px;
             box${HYPHEN}shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5);
-            display: flex;
-            flex${HYPHEN}direction: column;
-            overflow: hidden;
+            display: flex !important;
+            flex${HYPHEN}direction: column !important;
+            overflow: hidden !important;
             position: relative;
             transform: scale(0.92);
             transition: transform 0.3s cubic${HYPHEN}bezier(0.16, 1, 0.3, 1);
@@ -1050,11 +1054,11 @@ function applyGlobalStyles() {
 
         .close_overlay_btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 16px;
+            right: 16px;
             z${HYPHEN}index: 30;
-            width: 42px;
-            height: 42px;
+            width: 38px;
+            height: 38px;
             border${HYPHEN}radius: 50%;
             background: rgba(255, 255, 255, 0.85);
             backdrop${HYPHEN}filter: blur(10px);
@@ -1079,23 +1083,27 @@ function applyGlobalStyles() {
 
         .detail_hero_section {
             position: relative;
-            width: 100%;
-            height: 50% !important;
-            flex: 0 0 50% !important;
-            min${HYPHEN}height: 0;
+            width: 100% !important;
+            height: 260px !important;
+            max${HYPHEN}height: 260px !important;
+            flex: 0 0 260px !important;
+            min${HYPHEN}height: 0 !important;
             background: #0f172a;
-            overflow: hidden;
+            overflow: hidden !important;
+            display: flex !important;
+            align${HYPHEN}items: center !important;
+            justify${HYPHEN}content: center !important;
         }
 
         .detail_sticker_badge {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 16px;
+            left: 16px;
             z${HYPHEN}index: 20;
-            padding: 8px 18px;
-            font${HYPHEN}size: 13px;
+            padding: 6px 14px;
+            font${HYPHEN}size: 12px;
             font${HYPHEN}weight: 700;
-            border${HYPHEN}radius: 24px;
+            border${HYPHEN}radius: 20px;
             background: rgba(255, 255, 255, 0.92);
             backdrop${HYPHEN}filter: blur(12px);
             box${HYPHEN}shadow: 0 8px 20px rgba(0,0,0,0.15);
@@ -1106,15 +1114,23 @@ function applyGlobalStyles() {
         }
 
         .detail_image_container {
-            width: 100%;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
             position: relative;
+            display: flex !important;
+            align${HYPHEN}items: center !important;
+            justify${HYPHEN}content: center !important;
+            background: #0f172a;
+            overflow: hidden !important;
         }
 
         .detail_image_container img {
-            width: 100%;
-            height: 100%;
-            object${HYPHEN}fit: cover;
+            width: 100% !important;
+            height: 100% !important;
+            max${HYPHEN}width: 100% !important;
+            max${HYPHEN}height: 100% !important;
+            object${HYPHEN}fit: contain !important;
+            display: block !important;
         }
 
         .slide_btn {
@@ -1183,15 +1199,17 @@ function applyGlobalStyles() {
         }
 
         .detail_card_body {
-            height: 50% !important;
-            flex: 1 1 50% !important;
-            min${HYPHEN}height: 0;
-            padding: 24px 28px;
-            overflow${HYPHEN}y: auto;
-            display: flex;
-            flex${HYPHEN}direction: column;
-            gap: 16px;
-            background: #ffffff;
+            height: 260px !important;
+            max${HYPHEN}height: 260px !important;
+            flex: 0 0 260px !important;
+            min${HYPHEN}height: 0 !important;
+            padding: 20px 24px !important;
+            overflow${HYPHEN}y: auto !important;
+            display: flex !important;
+            flex${HYPHEN}direction: column !important;
+            gap: 12px !important;
+            background: #ffffff !important;
+            box${HYPHEN}sizing: border${HYPHEN}box !important;
         }
 
         .detail_card_body h2 {
@@ -1345,6 +1363,73 @@ function applyGlobalStyles() {
             transform: translateY(${HYPHEN}1px);
             box${HYPHEN}shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
         }
+
+        /* 🦚 동적 1개~5개 둥근 공작새 부채 (Peacock Arc) 3D 호버 및 거미줄 복귀 0.2초 속도 통일 */
+        .peacock_cluster_wrapper {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align${HYPHEN}items: center;
+            justify${HYPHEN}content: center;
+            cursor: pointer;
+        }
+
+        .peacock_dynamic_card {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 44px;
+            height: 44px;
+            border${HYPHEN}radius: 50%;
+            background: #ffffff;
+            border: 2.5px solid #2563eb;
+            box${HYPHEN}shadow: 0 8px 22px rgba(0,0,0,0.3);
+            display: flex;
+            align${HYPHEN}items: center;
+            justify${HYPHEN}content: center;
+            opacity: 0;
+            transform: scale(0.3) translate(0, 0);
+            transition: all 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1) !important;
+            pointer${HYPHEN}events: none;
+            z${HYPHEN}index: 1;
+            overflow: hidden;
+        }
+
+        .peacock_cluster_wrapper:hover .peacock_dynamic_card {
+            opacity: 1;
+            transform: rotate(var(${HYPHEN}${HYPHEN}rot)) translate(var(${HYPHEN}${HYPHEN}tx), var(${HYPHEN}${HYPHEN}ty)) scale(0.92);
+            z${HYPHEN}index: var(${HYPHEN}${HYPHEN}zidx);
+        }
+
+        .peacock_cluster_main {
+            position: relative;
+            width: 52px;
+            height: 52px;
+            border${HYPHEN}radius: 50%;
+            background: #ffffff;
+            border: 3.5px solid #2563eb;
+            box${HYPHEN}shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+            display: flex;
+            align${HYPHEN}items: center;
+            justify${HYPHEN}content: center;
+            z${HYPHEN}index: 20;
+            transition: transform 0.2s ease !important;
+        }
+
+        .peacock_cluster_wrapper:hover .peacock_cluster_main {
+            transform: scale(1.1);
+            box${HYPHEN}shadow: 0 14px 32px rgba(37, 99, 235, 0.5);
+        }
+
+        /* 🕷️ 거미줄 펼침 및 복귀(Unspiderfy) 트랜지션 0.2초 초고속 통일 */
+        .leaflet${HYPHEN}cluster${HYPHEN}spider${HYPHEN}leg {
+            transition: all 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1) !important;
+        }
+
+        .leaflet${HYPHEN}marker${HYPHEN}icon {
+            transition: transform 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease !important;
+        }
     `;
     document.head.appendChild(styleEl);
 }
@@ -1372,7 +1457,7 @@ function updateModeUI() {
     const tabAddBtn = document.getElementById("tabAddBtn");
     const mapInst = document.getElementById("mapInstruction");
     const syncCloudBtn = document.getElementById("syncCloudBtn");
-    
+
     // 1. 모드 토글 스위치 액티브 스타일 제어
     if (state.userMode === "admin") {
         userBtn.classList.remove("active");
@@ -1387,7 +1472,7 @@ function updateModeUI() {
             color: "#64748b",
             boxShadow: "none"
         });
-        
+
         // 관리자는 활동 등록 탭 및 클라우드 동기화 도구 노출
         applyStyles(tabAddBtn, { display: "block" });
         if (syncCloudBtn) {
@@ -1409,7 +1494,7 @@ function updateModeUI() {
             color: "#64748b",
             boxShadow: "none"
         });
-        
+
         // 학생은 활동 등록 탭 및 클라우드 동기화 버튼 완벽 숨김
         applyStyles(tabAddBtn, { display: "none" });
         if (syncCloudBtn) {
@@ -1418,14 +1503,14 @@ function updateModeUI() {
         if (mapInst) {
             mapInst.innerHTML = "<p>💡 지도 위의 활동 스티커를 클릭하면 자세한 내용을 볼 수 있습니다.</p>";
         }
-        
+
         // 만약 현재 활동 등록 탭이 열려있다면 즉시 활동 목록 탭으로 복귀
         const addTab = document.getElementById("tabAdd");
         if (addTab && addTab.classList.contains("active")) {
             switchTab("list");
         }
     }
-    
+
     // 2. 개별 리스트 카드 내 삭제 버튼 표시 여부 실시간 반영을 위해 리스트 재렌더링
     updateActivityList();
 }
@@ -1434,7 +1519,7 @@ function updateModeUI() {
 function updateTabBtnStyles() {
     const listBtn = document.getElementById("tabListBtn");
     const addBtn = document.getElementById("tabAddBtn");
-    
+
     if (listBtn.classList.contains("active")) {
         applyStyles(listBtn, {
             background: "#ffffff",
@@ -1464,7 +1549,7 @@ function updateTabBtnStyles() {
 function initMap() {
     // 나주시의 중심 좌표 및 적절한 줌 레벨
     const najuCenter = [35.016, 126.716];
-    
+
     state.map = L.map("map", {
         zoomControl: false,
         minZoom: 10,
@@ -1480,18 +1565,146 @@ function initMap() {
     // 완벽한 한글 지명을 제공하는 오픈스트리트맵 기본 타일 연동
     const tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
     const attribution = "&copy; OpenStreetMap contributors";
-    
+
     L.tileLayer(tileUrl, {
         attribution: attribution,
         maxZoom: 19,
         maxNativeZoom: 19
     }).addTo(state.map);
 
+    // 1번 기능: 스마트 사진 클러스터링 & 🦚 공작새 부채(Peacock Fan) 롤오버 그룹 레이어 세팅
+    if (typeof L.markerClusterGroup === "function") {
+        state.markerClusterGroup = L.markerClusterGroup({
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            spiderfyOnMaxZoom: true,
+            spiderfyDistanceMultiplier: 1.5,
+            removeOutsideVisibleBounds: true,
+            maxClusterRadius: 40,
+            iconCreateFunction: function (cluster) {
+                const count = cluster.getChildCount();
+                const childMarkers = cluster.getAllChildMarkers();
+
+                // 묶음 내 마커들의 실제 대표 사진 URL 및 스티커 정보 추출
+                let cardItems = [];
+                childMarkers.forEach(m => {
+                    if (m && m.activityId) {
+                        const act = state.activities.find(a => a.id === m.activityId);
+                        if (act) {
+                            const hasRealImg = act.images && act.images.length > 0 && act.images[0] && act.images[0] !== BACKUP_IMAGE;
+                            const thumb = hasRealImg ? act.images[0] : null;
+                            const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
+                            cardItems.push({
+                                thumb: thumb,
+                                emoji: sticker.emoji,
+                                color: sticker.color
+                            });
+                        }
+                    }
+                });
+
+                // 최소 1개, 최대 5개까지 유연하게 표시
+                const totalDisplay = Math.min(cardItems.length > 0 ? cardItems.length : 1, 5);
+                const displayItems = cardItems.length > 0 ? cardItems.slice(0, totalDisplay) : [{ thumb: null, emoji: "📸", color: "#2563eb" }];
+
+                // N개 (1~5개)에 맞춘 부채꼴 각도 및 둥근 아치 궤적 수학 공식 연산
+                let fanCardsHtml = "";
+                let startAngle = 0;
+                let angleStep = 0;
+
+                if (totalDisplay === 1) {
+                    startAngle = 0;
+                    angleStep = 0;
+                } else if (totalDisplay === 2) {
+                    startAngle = -26;
+                    angleStep = 52;
+                } else if (totalDisplay === 3) {
+                    startAngle = -42;
+                    angleStep = 42;
+                } else if (totalDisplay === 4) {
+                    startAngle = -51;
+                    angleStep = 34;
+                } else if (totalDisplay >= 5) {
+                    startAngle = -60;
+                    angleStep = 30;
+                }
+
+                const R = 44; // 떠오르는 아치 반경 (px)
+
+                displayItems.forEach((item, idx) => {
+                    const angle = startAngle + (idx * angleStep);
+                    const rad = angle * (Math.PI / 180);
+                    const tx = Math.round(R * Math.sin(rad));
+                    const ty = Math.round(-R * Math.cos(rad));
+
+                    let innerHtml = item.thumb
+                        ? `<img src="${item.thumb}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" />`
+                        : `<span style="font-size:16px;">${item.emoji}</span>`;
+
+                    fanCardsHtml += `
+                        <div class="peacock_dynamic_card" style="
+                            --tx: ${tx}px;
+                            --ty: ${ty}px;
+                            --rot: ${angle}deg;
+                            --zidx: ${10 + idx};
+                            border-color: ${item.color || '#2563eb'};
+                        ">
+                            ${innerHtml}
+                        </div>
+                    `;
+                });
+
+                const mainThumb = (cardItems.length > 0 && cardItems[0].thumb)
+                    ? `<img src="${cardItems[0].thumb}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" />`
+                    : `<span style="font-size: 20px;">📸</span>`;
+
+                return L.divIcon({
+                    html: `
+                        <div class="peacock_cluster_wrapper">
+                            <!-- 🦚 동적 1개~5개 둥근 공작새 아치 카드들 -->
+                            ${fanCardsHtml}
+
+                            <!-- 메인 묶음 마커 -->
+                            <div class="peacock_cluster_main">
+                                ${mainThumb}
+                                <div style="
+                                    position: absolute;
+                                    top: -4px;
+                                    right: -4px;
+                                    background: linear-gradient(135deg, #2563eb, #3b82f6);
+                                    color: #ffffff;
+                                    font-size: 11px;
+                                    font-weight: 800;
+                                    padding: 2px 7px;
+                                    border-radius: 12px;
+                                    border: 2px solid #ffffff;
+                                    box-shadow: 0 3px 8px rgba(0,0,0,0.22);
+                                    z-index: 25;
+                                ">${count}</div>
+                            </div>
+                        </div>
+                    `,
+                    className: "custom_peacock_cluster_icon",
+                    iconSize: [56, 56],
+                    iconAnchor: [28, 28]
+                });
+            }
+        });
+        state.map.addLayer(state.markerClusterGroup);
+    }
+
     // 구식 +/- 버튼 대신 터치 스크린 전용 부드러운 수직 줌 스크롤 슬라이더 탑재
     setupTouchZoomSlider();
-    
-    // 지도 클릭 이벤트: 클릭한 위치를 따서 활동 등록 폼에 반영
+
+    // 지도 클릭 이벤트: 활동 목록 모드에서는 최초 중심점 복귀, 등록 모드에서는 좌표 등록
     state.map.on("click", (e) => {
+        const listTab = document.getElementById("tabList");
+        if (listTab && listTab.classList.contains("active")) {
+            // 활동 목록 모드에서 빈 지도를 클릭한 경우 최초 지도 사이즈 및 나주시 중심점으로 복귀
+            resetToInitialState();
+            return;
+        }
+
         if (state.userMode === "user") {
             showToast("활동 등록은 관리자 모드에서만 가능합니다.");
             return;
@@ -1583,7 +1796,7 @@ function setupTouchZoomSlider() {
 function openRegisterFormAt(lat, lng) {
     state.selectedLat = lat;
     state.selectedLng = lng;
-    
+
     const display = document.getElementById("coordsDisplay");
     display.textContent = `위도: ${lat.toFixed(5)}, 경도: ${lng.toFixed(5)}`;
     applyStyles(display, {
@@ -1594,7 +1807,7 @@ function openRegisterFormAt(lat, lng) {
 
     document.getElementById("inputLat").value = lat;
     document.getElementById("inputLng").value = lng;
-    
+
     // 탭을 활동 등록으로 변경
     switchTab("add");
 }
@@ -1605,7 +1818,7 @@ function switchTab(tabType) {
     const addTab = document.getElementById("tabAdd");
     const listBtn = document.getElementById("tabListBtn");
     const addBtn = document.getElementById("tabAddBtn");
-    
+
     if (tabType === "list") {
         listTab.classList.add("active");
         addTab.classList.remove("active");
@@ -1628,7 +1841,7 @@ function switchTab(tabType) {
 function fetchNajuBoundaries() {
     const cacheKey = "naju_umd_geojson_v4";
     const cachedData = localStorage.getItem(cacheKey);
-    
+
     if (cachedData) {
         try {
             const geojson = JSON.parse(cachedData);
@@ -1643,80 +1856,80 @@ function fetchNajuBoundaries() {
             localStorage.removeItem(cacheKey);
         }
     }
-    
+
     // 오픈소스 행정경계 저장소 데이터 주소 조합 (하이픈 제외)
     const repoPart = "Local_HangJeongDong";
     const mapRepoPart = "southkorea" + HYPHEN + "maps";
-    
+
     const umdUrl = `https://raw.githubusercontent.com/raqoon886/${repoPart}/master/hangjeongdong_%EC%A0%84%EB%9D%BC%EB%82%A8%EB%8F%84.geojson`;
     const sggUrl = `https://raw.githubusercontent.com/southkorea/${mapRepoPart}/master/kostat/2018/json/skorea${HYPHEN}municipalities${HYPHEN}2018${HYPHEN}geo.json`;
-    
+
     Promise.all([
         fetch(umdUrl).then(res => res.json()),
         fetch(sggUrl).then(res => res.json())
     ])
-    .then(([umdData, sggData]) => {
-        // 1. 나주시 행정동 필터링 (행정동 레벨 8)
-        const umdFeatures = umdData.features.filter(f => {
-            const code = f.properties.sgg || f.properties.sigungu || "";
-            const name = f.properties.sggnm || f.properties.sigungunm || "";
-            return name === "나주시" || code.toString() === "46170";
-        }).map(f => {
-            const cleanName = f.properties.dongnm || f.properties.adm_nm.split(" ").pop();
-            return {
-                type: "Feature",
-                properties: {
-                    name: cleanName,
-                    adminLevel: "8",
-                    type: "읍면동"
-                },
-                geometry: f.geometry
-            };
-        });
-
-        // 2. 나주시 전체 시경계 필터링 (시군구 레벨 6)
-        const sggFeature = sggData.features.find(f => {
-            const code = f.properties.code || "";
-            const name = f.properties.name || "";
-            return name === "나주시" || code.toString() === "46170";
-        });
-
-        const finalFeatures = [...umdFeatures];
-        if (sggFeature) {
-            finalFeatures.push({
-                type: "Feature",
-                properties: {
-                    name: "나주시",
-                    adminLevel: "6",
-                    type: "시경계"
-                },
-                geometry: sggFeature.geometry
+        .then(([umdData, sggData]) => {
+            // 1. 나주시 행정동 필터링 (행정동 레벨 8)
+            const umdFeatures = umdData.features.filter(f => {
+                const code = f.properties.sgg || f.properties.sigungu || "";
+                const name = f.properties.sggnm || f.properties.sigungunm || "";
+                return name === "나주시" || code.toString() === "46170";
+            }).map(f => {
+                const cleanName = f.properties.dongnm || f.properties.adm_nm.split(" ").pop();
+                return {
+                    type: "Feature",
+                    properties: {
+                        name: cleanName,
+                        adminLevel: "8",
+                        type: "읍면동"
+                    },
+                    geometry: f.geometry
+                };
             });
-        }
 
-        const geojson = {
-            type: "FeatureCollection",
-            features: finalFeatures
-        };
+            // 2. 나주시 전체 시경계 필터링 (시군구 레벨 6)
+            const sggFeature = sggData.features.find(f => {
+                const code = f.properties.code || "";
+                const name = f.properties.name || "";
+                return name === "나주시" || code.toString() === "46170";
+            });
 
-        // 행정동 필터 개수가 정상적일 때만 정상 캐싱 및 렌더링
-        if (finalFeatures.length > 5) {
-            localStorage.setItem(cacheKey, JSON.stringify(geojson));
-            drawUmdBoundaries(geojson);
-        } else {
-            throw new Error("정상적인 나주시 행정경계 개수가 아닙니다.");
-        }
-        hideMapLoader();
-    })
-    .catch(err => {
-        console.error("경계 데이터 획득 에러, 정적 백업 데이터로 복원합니다", err);
-        if (typeof NAJU_BACKUP_GEOJSON !== "undefined") {
-            drawUmdBoundaries(NAJU_BACKUP_GEOJSON);
-        } else {
-            showToast("나주시 행정구역 경계를 불러오는 데 실패했습니다.");
-        }
-        hideMapLoader();
-    });
+            const finalFeatures = [...umdFeatures];
+            if (sggFeature) {
+                finalFeatures.push({
+                    type: "Feature",
+                    properties: {
+                        name: "나주시",
+                        adminLevel: "6",
+                        type: "시경계"
+                    },
+                    geometry: sggFeature.geometry
+                });
+            }
+
+            const geojson = {
+                type: "FeatureCollection",
+                features: finalFeatures
+            };
+
+            // 행정동 필터 개수가 정상적일 때만 정상 캐싱 및 렌더링
+            if (finalFeatures.length > 5) {
+                localStorage.setItem(cacheKey, JSON.stringify(geojson));
+                drawUmdBoundaries(geojson);
+            } else {
+                throw new Error("정상적인 나주시 행정경계 개수가 아닙니다.");
+            }
+            hideMapLoader();
+        })
+        .catch(err => {
+            console.error("경계 데이터 획득 에러, 정적 백업 데이터로 복원합니다", err);
+            if (typeof NAJU_BACKUP_GEOJSON !== "undefined") {
+                drawUmdBoundaries(NAJU_BACKUP_GEOJSON);
+            } else {
+                showToast("나주시 행정구역 경계를 불러오는 데 실패했습니다.");
+            }
+            hideMapLoader();
+        });
 }
 
 // 지도 위에 정밀 읍면동 경계선 그리기 및 상호작용 설정
@@ -1726,7 +1939,7 @@ function drawUmdBoundaries(geojson) {
     }
 
     state.umdLayer = L.geoJSON(geojson, {
-        style: function(feature) {
+        style: function (feature) {
             const level = feature.properties.adminLevel;
             if (level === "6") {
                 // 나주시 전체 시 경계 스타일 (진하고 굵은 경계선)
@@ -1751,7 +1964,7 @@ function drawUmdBoundaries(geojson) {
                 };
             }
         },
-        onEachFeature: function(feature, layer) {
+        onEachFeature: function (feature, layer) {
             // 시경계(레벨6)는 단순 장식용 외곽선이므로 이벤트를 걸지 않고 조기 리턴
             if (feature.properties.adminLevel === "6") return;
 
@@ -1764,7 +1977,7 @@ function drawUmdBoundaries(geojson) {
                     color: "#4f46e5",
                     weight: 1.8
                 });
-                
+
                 layer.bindTooltip(feature.properties.name, {
                     direction: "center",
                     permanent: false,
@@ -1775,9 +1988,14 @@ function drawUmdBoundaries(geojson) {
             layer.on("mouseout", (e) => {
                 state.umdLayer.resetStyle(e.target);
             });
-            
+
             layer.on("click", (e) => {
                 L.DomEvent.stopPropagation(e);
+                const listTab = document.getElementById("tabList");
+                if (listTab && listTab.classList.contains("active")) {
+                    resetToInitialState();
+                    return;
+                }
                 if (state.userMode === "user") {
                     showToast("활동 등록은 관리자 모드에서만 가능합니다.");
                     return;
@@ -1800,25 +2018,25 @@ function renderPreviewList() {
     const previewList = document.getElementById("imagePreviewList");
     if (!previewList) return;
     previewList.innerHTML = "";
-    
+
     state.selectedImages.forEach((imgData, index) => {
         const wrapper = document.createElement("div");
         wrapper.className = "preview_image_wrapper";
-        
+
         const img = document.createElement("img");
         img.src = imgData;
         img.alt = "업로드 이미지";
-        
+
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
         removeBtn.className = "remove_btn";
         removeBtn.innerHTML = "×";
-        
+
         removeBtn.addEventListener("click", () => {
             state.selectedImages.splice(index, 1);
             renderPreviewList();
         });
-        
+
         wrapper.appendChild(img);
         wrapper.appendChild(removeBtn);
         previewList.appendChild(wrapper);
@@ -1843,17 +2061,17 @@ function setupEventListeners() {
     const modeUserBtn = document.getElementById("modeUserBtn");
     const modeAdminBtn = document.getElementById("modeAdminBtn");
     const syncCloudBtn = document.getElementById("syncCloudBtn");
-    
+
     listBtn.addEventListener("click", () => switchTab("list"));
     addBtn.addEventListener("click", () => switchTab("add"));
-    
+
     modeUserBtn.addEventListener("click", () => switchUserMode("user"));
     modeAdminBtn.addEventListener("click", () => switchUserMode("admin"));
 
     if (syncCloudBtn) {
         syncCloudBtn.addEventListener("click", uploadLocalDataToFirebase);
     }
-    
+
     // 오버레이 클릭 시 닫기
     closeBtn.addEventListener("click", hideDetailOverlay);
     detailOverlay.addEventListener("click", (e) => {
@@ -1861,49 +2079,49 @@ function setupEventListeners() {
             hideDetailOverlay();
         }
     });
-    
-// 이미지 캔버스 리사이징 및 획기적 용량 압축 (localStorage 5MB 제한 회피용)
-function compressImage(dataUrl, callback, maxWidth = 800, maxHeight = 800, quality = 0.7) {
-    const img = new Image();
-    img.onload = () => {
-        let width = img.width;
-        let height = img.height;
 
-        if (width > height) {
-            if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
+    // 이미지 캔버스 리사이징 및 획기적 용량 압축 (localStorage 5MB 제한 회피용)
+    function compressImage(dataUrl, callback, maxWidth = 800, maxHeight = 800, quality = 0.7) {
+        const img = new Image();
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                }
             }
-        } else {
-            if (height > maxHeight) {
-                width = Math.round((width * maxHeight) / height);
-                height = maxHeight;
-            }
-        }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
 
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
 
-        // JPEG 0.7 품질로 압축하여 DataURL 크기를 30~80KB 수준으로 최소화
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-        callback(compressedDataUrl);
-    };
-    img.onerror = () => {
-        // 에러 시 원본 사용
-        callback(dataUrl);
-    };
-    img.src = dataUrl;
-}
+            // JPEG 0.7 품질로 압축하여 DataURL 크기를 30~80KB 수준으로 최소화
+            const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+            callback(compressedDataUrl);
+        };
+        img.onerror = () => {
+            // 에러 시 원본 사용
+            callback(dataUrl);
+        };
+        img.src = dataUrl;
+    }
 
-// 다중 파일 업로드 처리 (캔버스 자동 리사이징 및 압축 적용)
+    // 다중 파일 업로드 처리 (캔버스 자동 리사이징 및 압축 적용)
     fileInput.addEventListener("change", (e) => {
         const files = Array.from(e.target.files);
         let loadedCount = 0;
-        
+
         files.forEach(file => {
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -1926,7 +2144,7 @@ function compressImage(dataUrl, callback, maxWidth = 800, maxHeight = 800, quali
         opt.addEventListener("click", () => {
             document.querySelectorAll(".sticker_option").forEach(el => el.classList.remove("active"));
             opt.classList.add("active");
-            
+
             const stickerKey = opt.dataset.sticker;
             state.selectedSticker = stickerKey;
         });
@@ -1965,7 +2183,7 @@ function compressImage(dataUrl, callback, maxWidth = 800, maxHeight = 800, quali
         btn.addEventListener("click", () => {
             document.querySelectorAll(".filter_btn").forEach(el => el.classList.remove("active"));
             btn.classList.add("active");
-            
+
             state.currentCategoryFilter = btn.dataset.bigbang;
             applyCategoryFilter();
         });
@@ -1988,7 +2206,7 @@ function resetCategoryFilterToAll() {
 function saveActivityRecord() {
     const title = document.getElementById("inputTitle").value.trim();
     const content = document.getElementById("inputContent").value.trim();
-    
+
     if (state.selectedLat === null || state.selectedLng === null || isNaN(state.selectedLat) || isNaN(state.selectedLng)) {
         showToast("지도를 클릭하거나 위치가 지정되어 있어야 합니다!");
         return;
@@ -2048,12 +2266,12 @@ function startEditActivity(act) {
     state.selectedLat = Number(act.lat);
     state.selectedLng = Number(act.lng);
     state.selectedSticker = act.sticker || "b_yuchoyium";
-    
+
     // 기본 백업 이미지(BACKUP_IMAGE)는 제외하여 사용자가 새로 첨부하는 사진이 1순위 대표 이미지가 되도록 함
-    state.selectedImages = act.images && act.images.length > 0 
-        ? act.images.filter(img => img !== BACKUP_IMAGE) 
+    state.selectedImages = act.images && act.images.length > 0
+        ? act.images.filter(img => img !== BACKUP_IMAGE)
         : [];
-    
+
     // 위치 표시 업데이트
     const display = document.getElementById("coordsDisplay");
     if (display) {
@@ -2064,12 +2282,12 @@ function startEditActivity(act) {
             borderColor: "#bfdbfe"
         });
     }
-    
+
     document.getElementById("inputLat").value = act.lat;
     document.getElementById("inputLng").value = act.lng;
     document.getElementById("inputTitle").value = act.title || "";
     document.getElementById("inputContent").value = act.content || "";
-    
+
     // 스티커 셀렉터 UI 활성화
     document.querySelectorAll(".sticker_option").forEach(opt => {
         if (opt.dataset.sticker === state.selectedSticker) {
@@ -2078,14 +2296,14 @@ function startEditActivity(act) {
             opt.classList.remove("active");
         }
     });
-    
+
     // 업로드 이미지 프리뷰 렌더링
     renderPreviewList();
-    
+
     // 등록 버튼 텍스트 변경
     const saveBtn = document.getElementById("saveBtn");
     if (saveBtn) saveBtn.textContent = "활동 내용 수정 완료";
-    
+
     // 활동 등록(수정) 탭으로 이동
     switchTab("add");
     showToast("수정 모드로 전환되었습니다. 내용을 수정한 뒤 완결 단추를 눌러주세요.");
@@ -2095,7 +2313,7 @@ function startEditActivity(act) {
 function resetForm() {
     const form = document.getElementById("activityForm");
     if (form) form.reset();
-    
+
     const inputLat = document.getElementById("inputLat");
     if (inputLat) inputLat.value = "";
     const inputLng = document.getElementById("inputLng");
@@ -2130,17 +2348,21 @@ function resetForm() {
             borderColor: "rgba(226, 232, 240, 0.8)"
         });
     }
-    
+
     const saveBtn = document.getElementById("saveBtn");
     if (saveBtn) saveBtn.textContent = "지도에 등록하기";
 }
 
-// 지도 위의 마커 재생성
+// 지도 위의 마커 재생성 (스마트 사진 클러스터 연동)
 function renderActivitiesOnMap() {
-    // 기존 마커 전체 제거
-    state.markers.forEach(m => state.map.removeLayer(m));
+    // 기존 마커 전체 및 클러스터 레이어 초기화
+    if (state.markerClusterGroup) {
+        state.markerClusterGroup.clearLayers();
+    } else {
+        state.markers.forEach(m => state.map.removeLayer(m));
+    }
     state.markers = [];
-    
+
     // 필터 조건에 부합하는 활동들을 마커로 맵핑
     state.activities.forEach(act => {
         if (shouldShowActivity(act)) {
@@ -2157,10 +2379,10 @@ function shouldShowActivity(act) {
     return act.sticker === state.currentCategoryFilter;
 }
 
-// 특정 활동에 대한 대표 이미지 썸네일 마커 제작 및 이벤트 배치
+// 특정 활동에 대한 대표 이미지 썸네일 마커 제작 및 클러스터 그룹 연동
 function createMarkerForActivity(act) {
     const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
-    
+
     // 대표 사진 이미지가 있는지 확인
     const hasImage = act.images && act.images.length > 0 && act.images[0];
     const thumbUrl = hasImage ? act.images[0] : null;
@@ -2218,8 +2440,13 @@ function createMarkerForActivity(act) {
         iconAnchor: [24, 24]
     });
 
-    const marker = L.marker([act.lat, act.lng], { icon: customIcon }).addTo(state.map);
-    
+    const marker = L.marker([act.lat, act.lng], { icon: customIcon });
+    if (state.markerClusterGroup) {
+        state.markerClusterGroup.addLayer(marker);
+    } else {
+        marker.addTo(state.map);
+    }
+
     // 마커 클릭 시 우아하게 롤오버되는 오버레이 표시
     marker.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
@@ -2236,7 +2463,7 @@ function createMarkerForActivity(act) {
             });
         }
     });
-    
+
     marker.on("mouseout", (e) => {
         const markerDom = e.target.getElement().querySelector(".custom_marker_pin");
         if (markerDom) {
@@ -2257,9 +2484,9 @@ function createMarkerForActivity(act) {
 function showDetailOverlay(act) {
     const overlay = document.getElementById("detailOverlay");
     const card = overlay.querySelector(".detail_card_wrapper");
-    
+
     const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
-    
+
     const stickerBadge = document.getElementById("detailStickerBadge");
     if (stickerBadge) {
         stickerBadge.innerHTML = `<span style="font-size: 16px;">${sticker.emoji}</span> <span>${sticker.text}</span>`;
@@ -2272,7 +2499,7 @@ function showDetailOverlay(act) {
 
     document.getElementById("detailTitle").textContent = act.title;
     document.getElementById("detailContent").textContent = act.content;
-    
+
     // 이미지 슬라이더 초기화
     state.currentSliderIndex = 0;
     const images = act.images && act.images.length > 0 ? act.images : [BACKUP_IMAGE];
@@ -2304,7 +2531,7 @@ function updateSliderView(images) {
     const prevBtn = document.getElementById("slidePrevBtn");
     const nextBtn = document.getElementById("slideNextBtn");
     const dotsEl = document.getElementById("slideDots");
-    
+
     if (!imgEl) return;
 
     imgEl.src = images[state.currentSliderIndex];
@@ -2316,14 +2543,14 @@ function updateSliderView(images) {
     } else {
         applyStyles(prevBtn, { display: "flex" });
         applyStyles(nextBtn, { display: "flex" });
-        
+
         // 화살표 리스너 클린 바인딩 (이벤트 중복 등록 방지)
         prevBtn.onclick = (e) => {
             e.stopPropagation();
             state.currentSliderIndex = (state.currentSliderIndex - 1 + images.length) % images.length;
             updateSliderView(images);
         };
-        
+
         nextBtn.onclick = (e) => {
             e.stopPropagation();
             state.currentSliderIndex = (state.currentSliderIndex + 1) % images.length;
@@ -2352,10 +2579,10 @@ function hideDetailOverlay() {
     stopPopupInactivityTimer();
     const overlay = document.getElementById("detailOverlay");
     const card = overlay.querySelector(".detail_card_wrapper");
-    
+
     applyStyles(overlay, { opacity: "0" });
     applyStyles(card, { transform: "scale(0.9)" });
-    
+
     setTimeout(() => {
         overlay.style.display = "none";
     }, 400);
@@ -2364,12 +2591,12 @@ function hideDetailOverlay() {
 // 팝업 무조작 자동 닫힘 타이머 시작 (20초)
 function startPopupInactivityTimer() {
     stopPopupInactivityTimer();
-    
+
     // 17초 시점 (20초 3초 전) 안내 메시지
     popupNoticeTimer = setTimeout(() => {
         showToast("3초 후 화면이 전환됩니다.");
     }, 17000);
-    
+
     // 20초 시점 팝업 자동 닫기
     popupInactivityTimer = setTimeout(() => {
         hideDetailOverlay();
@@ -2395,12 +2622,12 @@ function resetPopupInactivityTimer() {
 // 화면 전체 무조작 자동 초기화 타이머 시작 (60초)
 function startGlobalIdleTimer() {
     stopGlobalIdleTimer();
-    
+
     // 57초 시점 (60초 3초 전) 안내 메시지
     idleNoticeTimer = setTimeout(() => {
         showToast("3초 후 화면이 전환됩니다.");
     }, 57000);
-    
+
     // 60초 시점 초기 화면 복귀
     idleInactivityTimer = setTimeout(() => {
         resetToInitialState();
@@ -2426,7 +2653,7 @@ function resetToInitialState() {
     resetCategoryFilterToAll();
     switchTab("list");
     resetForm();
-    
+
     if (state.map) {
         if (state.umdLayer && typeof state.umdLayer.getBounds === "function" && state.umdLayer.getBounds().isValid()) {
             // 나주시 정밀 경계선 박스에 맞추어 화면 정중앙으로 비행 포커싱
@@ -2468,16 +2695,16 @@ function applyCategoryFilter() {
 function updateActivityList() {
     const listContainer = document.getElementById("activityList");
     const countLabel = document.getElementById("activityCount");
-    
+
     const filtered = state.activities.filter(shouldShowActivity);
     countLabel.textContent = filtered.length;
-    
+
     listContainer.innerHTML = "";
-    
+
     if (filtered.length === 0) {
         const empty = document.createElement("div");
         empty.className = "empty_message";
-        const emptyNotice = state.userMode === "admin" 
+        const emptyNotice = state.userMode === "admin"
             ? "<p>선택된 영역의 활동 기록이 없습니다.</p><p>지도를 클릭하여 새 활동을 기록해 보세요!</p>"
             : "<p>선택된 영역의 활동 기록이 없습니다.</p>";
         empty.innerHTML = emptyNotice;
@@ -2490,13 +2717,13 @@ function updateActivityList() {
         listContainer.appendChild(empty);
         return;
     }
-    
+
     filtered.forEach(act => {
         const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
-        
+
         const card = document.createElement("div");
         card.className = "activity_card";
-        
+
         applyStyles(card, {
             background: "#ffffff",
             borderRadius: "16px",
@@ -2538,7 +2765,7 @@ function updateActivityList() {
             background: "#f1f5f9",
             flexShrink: "0"
         });
-        
+
         const img = document.createElement("img");
         img.src = act.images && act.images.length > 0 ? act.images[0] : BACKUP_IMAGE;
         applyStyles(img, {
@@ -2547,14 +2774,14 @@ function updateActivityList() {
             objectFit: "cover"
         });
         thumb.appendChild(img);
-        
+
         // 텍스트 정보 영역
         const info = document.createElement("div");
         applyStyles(info, {
             flex: "1",
             overflow: "hidden"
         });
-        
+
         const topRow = document.createElement("div");
         applyStyles(topRow, {
             display: "flex",
@@ -2562,7 +2789,7 @@ function updateActivityList() {
             gap: "6px",
             marginBottom: "4px"
         });
-        
+
         const badge = document.createElement("span");
         badge.textContent = `${sticker.emoji} ${sticker.text}`;
         applyStyles(badge, {
@@ -2573,9 +2800,9 @@ function updateActivityList() {
             background: sticker.color + "15",
             color: sticker.color
         });
-        
+
         topRow.appendChild(badge);
-        
+
         const titleEl = document.createElement("h3");
         titleEl.textContent = act.title;
         applyStyles(titleEl, {
@@ -2587,10 +2814,10 @@ function updateActivityList() {
             overflow: "hidden",
             textOverflow: "ellipsis"
         });
-        
+
         info.appendChild(topRow);
         info.appendChild(titleEl);
-        
+
         // 관리자 모드일 때만 카드 내 수정/삭제 버튼 추가
         if (state.userMode === "admin") {
             const btnGroup = document.createElement("div");
@@ -2668,7 +2895,7 @@ function updateActivityList() {
         }
         card.appendChild(thumb);
         card.appendChild(info);
-        
+
         // 카드 클릭 시 해당 활동 상세 오버레이 및 맵 중심으로 비행 (스위칭 100% 보장)
         card.addEventListener("click", (e) => {
             showDetailOverlay(act);
@@ -2679,7 +2906,7 @@ function updateActivityList() {
                 });
             }
         });
-        
+
         listContainer.appendChild(card);
     });
 }
@@ -2699,11 +2926,11 @@ function deleteActivity(id) {
 function showToast(msg) {
     const existing = document.getElementById("customToast");
     if (existing) existing.remove();
-    
+
     const toast = document.createElement("div");
     toast.id = "customToast";
     toast.textContent = msg;
-    
+
     applyStyles(toast, {
         position: "fixed",
         bottom: "40px",
@@ -2720,16 +2947,16 @@ function showToast(msg) {
         transition: "all 0.3s ease",
         pointerEvents: "none"
     });
-    
+
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         applyStyles(toast, {
             transform: "translateX(-50%) translateY(0)",
             opacity: "1"
         });
     }, 50);
-    
+
     setTimeout(() => {
         applyStyles(toast, {
             transform: "translateX(-50%) translateY(-20px)",
