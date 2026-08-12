@@ -1080,10 +1080,11 @@ function applyGlobalStyles() {
         .detail_hero_section {
             position: relative;
             width: 100%;
-            height: 380px;
+            height: 50% !important;
+            flex: 0 0 50% !important;
+            min${HYPHEN}height: 0;
             background: #0f172a;
             overflow: hidden;
-            flex${HYPHEN}shrink: 0;
         }
 
         .detail_sticker_badge {
@@ -1182,11 +1183,14 @@ function applyGlobalStyles() {
         }
 
         .detail_card_body {
-            padding: 32px 36px 36px 36px;
+            height: 50% !important;
+            flex: 1 1 50% !important;
+            min${HYPHEN}height: 0;
+            padding: 24px 28px;
             overflow${HYPHEN}y: auto;
             display: flex;
             flex${HYPHEN}direction: column;
-            gap: 20px;
+            gap: 16px;
             background: #ffffff;
         }
 
