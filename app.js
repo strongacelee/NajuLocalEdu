@@ -113,8 +113,13 @@ const DEFAULT_ACTIVITIES = [
     }
 ];
 
-// 구글 Firebase 무상 클라우드 데이터베이스 실시간 연동 엔드포인트
-const FIREBASE_API_URL = "https://najulocaledu-default-rtdb.firebaseio.com/activities.json";
+// 구글 Firebase 무상 클라우드 데이터베이스 엔드포인트 후보 (미국/아시아 리전 자동 지원)
+const FIREBASE_API_URLS = [
+    "https://najulocaledu-default-rtdb.firebaseio.com/activities.json",
+    "https://najulocaledu-default-rtdb.asia-southeast1.firebasedatabase.app/activities.json"
+];
+
+let activeFirebaseUrl = FIREBASE_API_URLS[0];
 
 // 로컬 및 구글 파이어베이스 클라우드 데이터베이스 하이브리드 동기화 로드
 function loadActivities() {
@@ -143,18 +148,22 @@ function loadActivities() {
         state.activities = [...DEFAULT_ACTIVITIES];
     }
 
-    // 2차: 구글 Firebase 클라우드 DB에서 실시간 전 세계 최신 데이터 동기화
+    // 2차: 구글 Firebase 클라우드 DB에서 실시간 전 세계 최신 데이터 동기화 (리전 자동 탐색)
     fetchActivitiesFromFirebase();
     
     // 3차: 12초 주기 백그라운드 실시간 클라우드 동기화 폴링 시작
-    setInterval(fetchActivitiesFromFirebase, 12000);
+    setInterval(() => fetchActivitiesFromFirebase(), 12000);
 }
 
-// Firebase 클라우드 DB 데이터 동기화 및 스마트 병합 마이그레이션 함수
-function fetchActivitiesFromFirebase() {
-    fetch(FIREBASE_API_URL)
+// Firebase 클라우드 DB 데이터 동기화 함수 (리전 자동 감지 및 로컬 이미지 우선 보존)
+function fetchActivitiesFromFirebase(urlIndex = 0) {
+    if (urlIndex >= FIREBASE_API_URLS.length) return;
+    
+    const targetUrl = FIREBASE_API_URLS[urlIndex];
+    fetch(targetUrl)
         .then(response => {
             if (!response.ok) throw new Error("Firebase fetch error");
+            activeFirebaseUrl = targetUrl;
             return response.json();
         })
         .then(data => {
@@ -169,7 +178,7 @@ function fetchActivitiesFromFirebase() {
                 } catch(e) {}
             }
 
-            // 내 컴퓨터에 새로 등록된 활동(이미지 포함)이 있는데 클라우드 DB에 누락된 경우 병합
+            // 내 컴퓨터 로컬 데이터와 클라우드 데이터 병합 (내 컴퓨터의 등록 이미지 우선 반영)
             let mergedMap = new Map();
             
             // 1. 클라우드 데이터 먼저 맵에 탑재
@@ -177,7 +186,7 @@ function fetchActivitiesFromFirebase() {
                 if (act && act.id) mergedMap.set(act.id, act);
             });
             
-            // 2. 내 컴퓨터 로컬 데이터(등록 사진 포함)로 덮어쓰기 및 병합 추가
+            // 2. 내 컴퓨터 로컬 데이터(등록 사진 포함)로 우선 반영
             localActivities.forEach(act => {
                 if (act && act.id) {
                     mergedMap.set(act.id, act);
@@ -198,7 +207,7 @@ function fetchActivitiesFromFirebase() {
                     localStorage.setItem("naju_activities", JSON.stringify(state.activities));
                 } catch (e) {}
 
-                // 만약 내 컴퓨터의 기존 등록 이미지 데이터가 클라우드보다 신규/우선인 경우 클라우드 DB로 자동 업로드 동기화!
+                // 구글 Firebase 클라우드 DB로 동기화 업로드 전송
                 syncToFirebaseCloud();
                 
                 // 화면 실시간 마커 및 목록 동기화
@@ -207,23 +216,45 @@ function fetchActivitiesFromFirebase() {
                     renderActivitiesOnMap();
                 }
             } else if (!data) {
-                // 클라우드 DB가 비어있는 경우 현재 기본 데이터를 클라우드에 전송 업로드
+                // 클라우드 DB가 비어있는 경우 현재 데이터를 전송
                 syncToFirebaseCloud();
             }
         })
         .catch(err => {
-            // 네트워크 차단 시 로컬 모드로 오프라인 작동 유지
-            console.log("Firebase 실시간 연결 대기 중");
+            // 접속 실패 시 다른 리전 URL로 자동 재시도
+            if (urlIndex + 1 < FIREBASE_API_URLS.length) {
+                fetchActivitiesFromFirebase(urlIndex + 1);
+            }
         });
 }
 
 // Firebase 클라우드 데이터베이스에 실시간 영구 동기화 전송
 function syncToFirebaseCloud() {
-    fetch(FIREBASE_API_URL, {
+    if (!activeFirebaseUrl) return;
+    fetch(activeFirebaseUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(state.activities)
     }).catch(err => console.log("Firebase sync error", err));
+}
+
+// 현재 내 컴퓨터(localStorage)의 모든 등록 이미지 및 활동 내역을 파이어베이스 클라우드 DB로 강제 전송 동기화
+function uploadLocalDataToFirebase() {
+    const saved = localStorage.getItem("naju_activities");
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                state.activities = parsed;
+                syncToFirebaseCloud();
+                updateActivityList();
+                if (state.map) renderActivitiesOnMap();
+                showToast("☁️ 내 컴퓨터의 등록 사진과 활동 내역이 구글 클라우드 DB에 성공적으로 전송되었습니다!");
+                return;
+            }
+        } catch (e) {}
+    }
+    showToast("동기화할 로컬 데이터가 없습니다.");
 }
 
 // JSON 파싱 안전 처리
@@ -1758,12 +1789,17 @@ function setupEventListeners() {
     const activityForm = document.getElementById("activityForm");
     const modeUserBtn = document.getElementById("modeUserBtn");
     const modeAdminBtn = document.getElementById("modeAdminBtn");
+    const syncCloudBtn = document.getElementById("syncCloudBtn");
     
     listBtn.addEventListener("click", () => switchTab("list"));
     addBtn.addEventListener("click", () => switchTab("add"));
     
     modeUserBtn.addEventListener("click", () => switchUserMode("user"));
     modeAdminBtn.addEventListener("click", () => switchUserMode("admin"));
+
+    if (syncCloudBtn) {
+        syncCloudBtn.addEventListener("click", uploadLocalDataToFirebase);
+    }
     
     // 오버레이 클릭 시 닫기
     closeBtn.addEventListener("click", hideDetailOverlay);
