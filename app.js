@@ -508,8 +508,9 @@ function applyGlobalStyles() {
         backdropFilter: "blur(20px)",
         webkitBackdropFilter: "blur(20px)",
         width: "500px",
-        height: "540px",
-        maxHeight: "88%",
+        height: "72vh",
+        maxHeight: "85%",
+        minHeight: "360px",
         borderRadius: "28px",
         border: "1px solid rgba(255, 255, 255, 0.7)",
         boxShadow: "0 24px 60px rgba(0, 0, 0, 0.15)",
@@ -1039,8 +1040,9 @@ function applyGlobalStyles() {
         .detail_card_wrapper {
             width: 88%;
             max${HYPHEN}width: 520px;
-            height: 520px !important;
-            max${HYPHEN}height: 85% !important;
+            height: 72vh !important;
+            max${HYPHEN}height: 560px !important;
+            min${HYPHEN}height: 360px !important;
             background: #ffffff;
             border${HYPHEN}radius: 24px;
             box${HYPHEN}shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -1084,9 +1086,9 @@ function applyGlobalStyles() {
         .detail_hero_section {
             position: relative;
             width: 100% !important;
-            height: 260px !important;
-            max${HYPHEN}height: 260px !important;
-            flex: 0 0 260px !important;
+            height: 50% !important;
+            max${HYPHEN}height: 50% !important;
+            flex: 0 0 50% !important;
             min${HYPHEN}height: 0 !important;
             background: #0f172a;
             overflow: hidden !important;
@@ -1199,12 +1201,13 @@ function applyGlobalStyles() {
         }
 
         .detail_card_body {
-            height: 260px !important;
-            max${HYPHEN}height: 260px !important;
-            flex: 0 0 260px !important;
+            height: 50% !important;
+            max${HYPHEN}height: 50% !important;
+            flex: 0 0 50% !important;
             min${HYPHEN}height: 0 !important;
             padding: 20px 24px !important;
             overflow${HYPHEN}y: auto !important;
+            ${HYPHEN}webkit${HYPHEN}overflow${HYPHEN}scrolling: touch !important;
             display: flex !important;
             flex${HYPHEN}direction: column !important;
             gap: 12px !important;
@@ -1532,26 +1535,37 @@ function applyGlobalStyles() {
                 box${HYPHEN}sizing: border${HYPHEN}box !important;
             }
 
-            /* 모바일 세로 팝업 창 비율 완벽 보존 (상단 사진 50% : 하단 조사 내용 50%) */
+            /* 다양한 패드 기기 스크린 높이 비율(68vh) 자동 맞춤 및 설명 내부 독립 스크롤 지정 */
             .detail_card_wrapper {
                 width: 92% !important;
-                max${HYPHEN}width: 440px !important;
-                height: 380px !important;
-                max${HYPHEN}height: 82% !important;
+                max${HYPHEN}width: 480px !important;
+                height: 68vh !important;
+                max${HYPHEN}height: 520px !important;
+                min${HYPHEN}height: 320px !important;
             }
 
             .detail_hero_section {
-                height: 190px !important;
-                max${HYPHEN}height: 190px !important;
-                flex: 0 0 190px !important;
+                height: 50% !important;
+                max${HYPHEN}height: 50% !important;
+                flex: 0 0 50% !important;
+                min${HYPHEN}height: 0 !important;
             }
 
             .detail_card_body {
-                height: 190px !important;
-                max${HYPHEN}height: 190px !important;
-                flex: 0 0 190px !important;
+                height: 50% !important;
+                max${HYPHEN}height: 50% !important;
+                flex: 0 0 50% !important;
+                min${HYPHEN}height: 0 !important;
                 padding: 14px 18px !important;
                 gap: 10px !important;
+                overflow${HYPHEN}y: auto !important;
+                ${HYPHEN}webkit${HYPHEN}overflow${HYPHEN}scrolling: touch !important;
+            }
+
+            .detail_content_box, .detail_content_paper, .detail_content_text {
+                overflow${HYPHEN}y: auto !important;
+                ${HYPHEN}webkit${HYPHEN}overflow${HYPHEN}scrolling: touch !important;
+                max${HYPHEN}height: 100% !important;
             }
 
             .detail_card_body h2 {
