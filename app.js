@@ -1783,7 +1783,9 @@ function updateTabBtnStyles() {
 // 지도 인스턴스 기동 및 부드러운 터치 줌 설정
 function initMap() {
     // 나주시의 중심 좌표 및 적절한 줌 레벨
+    const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
     const najuCenter = [35.016, 126.716];
+    const initialZoom = isPortrait ? 10.4 : 11;
 
     state.map = L.map("map", {
         zoomControl: false,
@@ -1791,7 +1793,7 @@ function initMap() {
         maxZoom: 19,
         touchZoom: true,
         bounceAtZoomLimits: false
-    }).setView(najuCenter, 11);
+    }).setView(najuCenter, initialZoom);
 
     setTimeout(() => {
         state.map.invalidateSize();
@@ -2244,6 +2246,9 @@ function drawUmdBoundaries(geojson) {
 
     // 저장된 마커 재배치
     renderActivitiesOnMap();
+
+    // 📱 세로모드 첫 접속 진입 시에도 빈 공간 클릭 시와 100% 동일하게 최고 좋은 화면 위치로 0초 자동 정밀 포커싱!
+    resetToInitialState();
 }
 
 
@@ -2893,10 +2898,10 @@ function resetToInitialState() {
         if (state.umdLayer && typeof state.umdLayer.getBounds === "function" && state.umdLayer.getBounds().isValid()) {
             const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
             if (isPortrait) {
-                // 📱 세로모드: 하단 바텀시트에 가려지지 않도록 하단 220px 오프셋 패딩을 주어 노출 상단 영역 중앙에 타겟팅!
+                // 📱 세로모드: 사용자가 가장 만족한 딱 좋은 화면 구도 (상단 360px 포커싱 오프셋 및 maxZoom 11.5)
                 state.map.flyToBounds(state.umdLayer.getBounds(), {
                     paddingTopLeft: [20, 20],
-                    paddingBottomRight: [20, 220],
+                    paddingBottomRight: [20, 360],
                     maxZoom: 11.5,
                     animate: true,
                     duration: 0.5
@@ -2911,7 +2916,7 @@ function resetToInitialState() {
             }
         } else {
             const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
-            let centerLat = isPortrait ? 34.9858 : 35.0158;
+            let centerLat = isPortrait ? 34.9658 : 35.0158;
             state.map.flyTo([centerLat, 126.7815], 11, {
                 animate: true,
                 duration: 0.5
@@ -3143,18 +3148,20 @@ function updateActivityList() {
         card.appendChild(thumb);
         card.appendChild(info);
 
-        // 카드 클릭 시 해당 활동 상세 오버레이 및 맵 중심으로 비행 (세로모드 상단 시야 중심 보정)
+        // 카드 클릭 시 해당 활동 상세 오버레이 및 맵 중심으로 비행 (세로모드 상단 시야 중심 보정 및 1단계 더 확대)
         card.addEventListener("click", () => {
             showDetailOverlay(act);
             if (state.map) {
                 const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
                 let targetLat = Number(act.lat);
                 let targetLng = Number(act.lng);
+                let targetZoom = isPortrait ? 15 : 14; // 세로모드 시 1단계 더 확대 (Zoom 15)
+
                 if (isPortrait) {
-                    // 세로모드: 하단 바텀시트에 가려지지 않도록 위도를 약간 아래(-0.007)로 보정하여 상단 노출 지도 중앙에 마커 솟아오름!
-                    targetLat = targetLat - 0.007;
+                    // 세로모드: 화면 밖으로 이탈하지 않고 상단 시야에 시원하게 솟아오르도록 위도를 -0.0055로 황금 미세 조율!
+                    targetLat = targetLat - 0.0055;
                 }
-                state.map.flyTo([targetLat, targetLng], 14, {
+                state.map.flyTo([targetLat, targetLng], targetZoom, {
                     animate: true,
                     duration: 0.6
                 });
