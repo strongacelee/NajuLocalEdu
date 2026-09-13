@@ -1789,7 +1789,7 @@ function initMap() {
 
     state.map = L.map("map", {
         zoomControl: false,
-        minZoom: 10,
+        minZoom: 8,
         maxZoom: 19,
         touchZoom: true,
         bounceAtZoomLimits: false,
