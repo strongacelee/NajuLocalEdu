@@ -207,11 +207,14 @@
                             </p>
                             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                                 <label for="inputCSVFile" class="csv_upload_btn" style="padding: 8px 14px; background: #059669; color: white; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                    <span>📤</span> CSV 파일 선택 업로드
+                                    <span>📥</span> 수정한 CSV 파일 업로드
                                 </label>
                                 <input type="file" id="inputCSVFile" accept=".csv" style="display: none;">
+                                <button type="button" id="exportCSVBtn" style="padding: 8px 14px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                    <span>📤</span> 현재 등록 데이터 CSV 다운로드
+                                </button>
                                 <button type="button" id="downloadCSVTemplateBtn" style="padding: 8px 14px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; font-size: 12px; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                    <span>📥</span> CSV 양식 샘플 다운로드
+                                    <span>📄</span> 기본 CSV 양식 다운로드
                                 </button>
                             </div>
                         </div>
@@ -262,9 +265,9 @@
     <!-- Turf.js GIS 라이브러리 추가 -->
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <!-- 나주시 지리 경계 데이터 로드 -->
-    <script src="naju_geojson.js?v=20260913_v7"></script>
+    <script src="naju_geojson.js?v=20260913_v20"></script>
     <!-- Custom JS -->
-    <script src="app.js?v=20260913_v7"></script>
+    <script src="app.js?v=20260913_v20"></script>
 </body>
 
 </html>
