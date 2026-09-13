@@ -124,9 +124,17 @@
                         <input type="hidden" id="inputLng">
 
                         <div class="form_group">
-                            <label>선택된 위치</label>
+                            <label>선택된 지도 위치</label>
                             <div class="selected_coords_box" id="coordsDisplay">
-                                지도를 클릭하여 위치를 지정해 주세요.
+                                지도를 클릭하거나 주소를 검색하면 위치가 설정됩니다.
+                            </div>
+                        </div>
+
+                        <div class="form_group">
+                            <label for="inputAddress">장소 주소 (도로명 또는 지번)</label>
+                            <div class="address_input_group" style="display: flex; gap: 8px;">
+                                <input type="text" id="inputAddress" placeholder="예: 전남 나주시 금성관길 8" style="flex: 1;">
+                                <button type="button" id="searchAddressBtn" class="address_search_btn" style="padding: 0 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap;">🔍 위치 찾기</button>
                             </div>
                         </div>
 
@@ -188,6 +196,25 @@
                         </div>
 
                         <button type="submit" class="submit_btn" id="saveBtn">지도에 등록하기</button>
+
+                        <!-- 데이터파일 일괄 등록 전용 섹션 -->
+                        <div class="batch_upload_section" style="margin-top: 20px; padding: 16px; background: rgba(241, 245, 249, 0.9); border-radius: 14px; border: 1.5px dashed #cbd5e1; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                                <span>📁</span> 데이터파일 일괄 등록 (CSV)
+                            </div>
+                            <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.4;">
+                                여러 활동 데이터를 CSV 파일로 작성하여 한 번에 업로드할 수 있습니다. 주소만 작성된 경우 지오코딩으로 위치가 자동 산출됩니다.
+                            </p>
+                            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                <label for="inputCSVFile" class="csv_upload_btn" style="padding: 8px 14px; background: #059669; color: white; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                    <span>📤</span> CSV 파일 선택 업로드
+                                </label>
+                                <input type="file" id="inputCSVFile" accept=".csv" style="display: none;">
+                                <button type="button" id="downloadCSVTemplateBtn" style="padding: 8px 14px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; font-size: 12px; color: #334155; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                    <span>📥</span> CSV 양식 샘플 다운로드
+                                </button>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </aside>
@@ -208,6 +235,10 @@
                 </div>
                 <div class="detail_card_body">
                     <h2 id="detailTitle">활동 이름</h2>
+                    <div class="detail_address_box" id="detailAddressBox" style="font-size: 13px; color: #475569; display: flex; align-items: center; gap: 6px; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-weight: 500;">
+                        <span>📍</span>
+                        <span id="detailAddress">주소 정보가 없습니다</span>
+                    </div>
                     <div class="detail_content_box">
                         <div class="detail_section_header">
                             <span class="detail_section_icon">📝</span>
