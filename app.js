@@ -1,10 +1,6 @@
 // 나주시 지역연계교육과정 운영 인포맵 핵심 스크립트
-// 사용자 규칙에 따라 코드 내 주석 및 문자열에서 하이픈 기호를 직접 사용하지 않고 문자 코드로 조합합니다
-
 const HYPHEN = String.fromCharCode(45);
 
-// 대표 스티커 정의
-// BIGBANG 7개 스티커 정의
 const STICKER_TYPES = {
     b_yuchoyium: { key: "B", emoji: "🏫", text: "B 유초이음", color: "#ec4899" },
     i_maeuljosa: { key: "I", emoji: "🔍", text: "I 마을조사", color: "#8b5cf6" },
@@ -15,69 +11,44 @@ const STICKER_TYPES = {
     g_governance: { key: "G", emoji: "🏛️", text: "G 거버넌스", color: "#06b6d4" }
 };
 
-// 다중 이미지가 없을 때 카드 등에 보여줄 은은한 기본 백업 이미지 (하이픈 조합 우회)
 const BACKUP_IMAGE = "https://images.unsplash.com/photo" + HYPHEN + "1618005182384" + HYPHEN + "a83a8bd57fbe?w=800";
 
-// 애플리케이션 상태 관리 객체
 let state = {
     map: null,
     umdLayer: null,
-    markerClusterGroup: null,
     activities: [],
     markers: [],
     selectedLat: null,
     selectedLng: null,
     selectedSticker: "b_yuchoyium",
-    selectedImages: [], // 복수 업로드 이미지 DataURL 배열
-    currentSliderIndex: 0, // 상세 슬라이더 인덱스
+    selectedImages: [],
+    currentSliderIndex: 0,
     currentCategoryFilter: "all",
     userMode: "user",
-    editingActivityId: null // 현재 수정 중인 활동 ID
+    editingActivityId: null
 };
 
-// 무조작 타이머 관련 글로벌 상태 변수
 let popupInactivityTimer = null;
 let popupNoticeTimer = null;
 let idleInactivityTimer = null;
 let idleNoticeTimer = null;
 
-// 페이지 로드 시 실행
 window.addEventListener("DOMContentLoaded", () => {
     initApp();
 });
 
-// 애플리케이션 초기화
 function initApp() {
-    // 로컬 스토리지에서 기존 활동 데이터 로드
     loadActivities();
-
-    // UI 요소 스타일 동적 적용
     applyGlobalStyles();
-
-    // 초기 탭 상태 설정 (활동 목록 탭 기본 활성화 및 등록 폼 숨김)
     switchTab("list");
-
-    // 지도 초기화
     initMap();
-
-    // 이벤트 리스너 설정
     setupEventListeners();
-
-    // 모바일 구글맵 스타일 바텀시트 터치 연동 설정
-    setupBottomSheet();
-
-    // 지도 데이터 로드
     fetchNajuBoundaries();
-
-    // 권한 모드 UI 갱신 초기 적용
     updateModeUI();
-
-    // 60초 전역 무조작 자동 초기화 트래커 시작
     setupGlobalIdleTracker();
     startGlobalIdleTimer();
 }
 
-// 기본 BIGBANG 데이터셋 백업
 const DEFAULT_ACTIVITIES = [
     {
         id: "act_default_1",
@@ -117,7 +88,6 @@ const DEFAULT_ACTIVITIES = [
     }
 ];
 
-// 구글 Firebase 무상 클라우드 데이터베이스 엔드포인트 후보 (미국/아시아 리전 자동 지원)
 const FIREBASE_API_URLS = [
     "https://najulocaledu-default-rtdb.firebaseio.com/activities.json",
     "https://najulocaledu-default-rtdb.asia-southeast1.firebasedatabase.app/activities.json"
@@ -125,9 +95,7 @@ const FIREBASE_API_URLS = [
 
 let activeFirebaseUrl = FIREBASE_API_URLS[0];
 
-// 로컬 및 구글 파이어베이스 클라우드 데이터베이스 하이브리드 동기화 로드
 function loadActivities() {
-    // 1차: 로컬스토리지에서 0.01초 만에 캐시 로드하여 화면 렌더링
     const saved = localStorage.getItem("naju_activities");
     if (saved) {
         try {
@@ -152,17 +120,13 @@ function loadActivities() {
         state.activities = [...DEFAULT_ACTIVITIES];
     }
 
-    // 2차: 구글 Firebase 클라우드 DB에서 실시간 전 세계 최신 데이터 동기화 (리전 자동 탐색)
     fetchActivitiesFromFirebase();
-
-    // 3차: 12초 주기 백그라운드 실시간 클라우드 동기화 폴링 시작
     setInterval(() => fetchActivitiesFromFirebase(), 12000);
 }
 
-// Firebase 클라우드 DB 데이터 동기화 함수 (리전 자동 감지 및 로컬 이미지 우선 보존)
 function fetchActivitiesFromFirebase(urlIndex = 0) {
     if (urlIndex >= FIREBASE_API_URLS.length) return;
-
+    
     const targetUrl = FIREBASE_API_URLS[urlIndex];
     fetch(targetUrl)
         .then(response => {
@@ -174,23 +138,19 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
             let cloudActivities = Array.isArray(data) ? data : [];
             let localSaved = localStorage.getItem("naju_activities");
             let localActivities = [];
-
+            
             if (localSaved) {
                 try {
                     let parsed = JSON.parse(localSaved);
                     if (Array.isArray(parsed)) localActivities = parsed;
-                } catch (e) { }
+                } catch(e) {}
             }
 
-            // 내 컴퓨터 로컬 데이터와 클라우드 데이터 병합 (내 컴퓨터의 등록 이미지 우선 반영)
             let mergedMap = new Map();
-
-            // 1. 클라우드 데이터 먼저 맵에 탑재
             cloudActivities.forEach(act => {
                 if (act && act.id) mergedMap.set(act.id, act);
             });
-
-            // 2. 내 컴퓨터 로컬 데이터(등록 사진 포함)로 우선 반영
+            
             localActivities.forEach(act => {
                 if (act && act.id) {
                     mergedMap.set(act.id, act);
@@ -198,7 +158,7 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
             });
 
             const mergedList = Array.from(mergedMap.values());
-
+            
             if (mergedList.length > 0) {
                 state.activities = mergedList.map(act => {
                     let sticker = act.sticker;
@@ -206,33 +166,26 @@ function fetchActivitiesFromFirebase(urlIndex = 0) {
                     return { ...act, sticker: sticker };
                 });
 
-                // 병합된 최신 데이터를 로컬스토리지에 보관
                 try {
                     localStorage.setItem("naju_activities", JSON.stringify(state.activities));
-                } catch (e) { }
+                } catch (e) {}
 
-                // 구글 Firebase 클라우드 DB로 동기화 업로드 전송
                 syncToFirebaseCloud();
-
-                // 화면 실시간 마커 및 목록 동기화
                 updateActivityList();
                 if (state.map) {
                     renderActivitiesOnMap();
                 }
             } else if (!data) {
-                // 클라우드 DB가 비어있는 경우 현재 데이터를 전송
                 syncToFirebaseCloud();
             }
         })
         .catch(err => {
-            // 접속 실패 시 다른 리전 URL로 자동 재시도
             if (urlIndex + 1 < FIREBASE_API_URLS.length) {
                 fetchActivitiesFromFirebase(urlIndex + 1);
             }
         });
 }
 
-// Firebase 클라우드 데이터베이스에 실시간 영구 동기화 전송 (권한 감지 포함)
 function syncToFirebaseCloud(onSuccess, onError) {
     if (!activeFirebaseUrl) return;
     fetch(activeFirebaseUrl, {
@@ -240,25 +193,24 @@ function syncToFirebaseCloud(onSuccess, onError) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(state.activities)
     })
-        .then(res => {
-            if (!res.ok) {
-                if (res.status === 401 || res.status === 403) {
-                    console.warn("Firebase DB 규칙 거부: .read: true, .write: true 설정 필요");
-                    if (onError) onError("permission_denied");
-                } else {
-                    if (onError) onError("http_error");
-                }
+    .then(res => {
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+                console.warn("Firebase DB 규칙 거부: .read: true, .write: true 설정 필요");
+                if (onError) onError("permission_denied");
             } else {
-                if (onSuccess) onSuccess();
+                if (onError) onError("http_error");
             }
-        })
-        .catch(err => {
-            console.log("Firebase sync error", err);
-            if (onError) onError("network_error");
-        });
+        } else {
+            if (onSuccess) onSuccess();
+        }
+    })
+    .catch(err => {
+        console.log("Firebase sync error", err);
+        if (onError) onError("network_error");
+    });
 }
 
-// 현재 내 컴퓨터(localStorage)의 모든 등록 이미지 및 활동 내역을 파이어베이스 클라우드 DB로 강제 전송 동기화
 function uploadLocalDataToFirebase() {
     const saved = localStorage.getItem("naju_activities");
     if (saved) {
@@ -282,12 +234,11 @@ function uploadLocalDataToFirebase() {
                 );
                 return;
             }
-        } catch (e) { }
+        } catch (e) {}
     }
     showToast("동기화할 로컬 데이터가 없습니다.");
 }
 
-// JSON 파싱 안전 처리
 function jsonParseSafe(str, fallback) {
     try {
         return JSON.parse(str);
@@ -296,24 +247,20 @@ function jsonParseSafe(str, fallback) {
     }
 }
 
-// 로컬 스토리지 저장 및 구글 Firebase 클라우드 DB 동시 실시간 전송
 function saveActivities() {
     try {
         localStorage.setItem("naju_activities", JSON.stringify(state.activities));
     } catch (e) {
         console.error("로컬 스토리지 저장 실패", e);
     }
-
-    // 구글 Firebase 클라우드 DB에 0.1초 실시간 동기화 전송
+    
     syncToFirebaseCloud();
-
     updateActivityList();
     if (state.map) {
         renderActivitiesOnMap();
     }
 }
 
-// 돔 요소 인라인 스타일 일괄 적용 함수
 function applyStyles(element, styleObj) {
     if (!element) return;
     for (const key in styleObj) {
@@ -321,15 +268,13 @@ function applyStyles(element, styleObj) {
     }
 }
 
-// 글로벌 세련된 테마 비주얼 스타일 정의 및 적용
 function applyGlobalStyles() {
     const container = document.getElementById("appContainer");
     const header = document.getElementById("mainHeader");
     const main = document.getElementById("mainContent");
     const mapWrapper = document.getElementById("mapWrapper");
     const sidePanel = document.getElementById("sidePanel");
-
-    // 전체 컨테이너 배경 및 레이아웃
+    
     applyStyles(container, {
         width: "100vw",
         height: "100vh",
@@ -341,7 +286,6 @@ function applyGlobalStyles() {
         overflow: "hidden"
     });
 
-    // 배경용 데코레이션 원형 요소 스타일링
     const circle1 = document.querySelector(".bg_circle1");
     const circle2 = document.querySelector(".bg_circle2");
     applyStyles(circle1, {
@@ -367,12 +311,11 @@ function applyGlobalStyles() {
         zIndex: "1"
     });
 
-    // 헤더 디자인 (글래스모피즘)
     applyStyles(header, {
         zIndex: "10",
         padding: "20px 40px",
         display: "flex",
-        justifyContent: "space" + HYPHEN + "between",
+        justify: "space" + HYPHEN + "between",
         alignItems: "center",
         background: "rgba(255, 255, 255, 0.75)",
         backdropFilter: "blur(16px)",
@@ -400,7 +343,6 @@ function applyGlobalStyles() {
         fontWeight: "400"
     });
 
-    // 메인 레이아웃 분할
     applyStyles(main, {
         flex: "1",
         display: "flex",
@@ -412,7 +354,6 @@ function applyGlobalStyles() {
         boxSizing: "border" + HYPHEN + "box"
     });
 
-    // 지도 래퍼 스타일
     applyStyles(mapWrapper, {
         flex: "1",
         height: "100%",
@@ -430,7 +371,6 @@ function applyGlobalStyles() {
         height: "100%"
     });
 
-    // 사이드 패널 디자인 (또렷하고 선명한 비주얼 패널)
     applyStyles(sidePanel, {
         width: "420px",
         height: "100%",
@@ -447,7 +387,6 @@ function applyGlobalStyles() {
         zIndex: "10"
     });
 
-    // 탭 메뉴 버튼 공통 스타일
     const tabs = document.querySelector(".panel_tabs");
     applyStyles(tabs, {
         display: "flex",
@@ -457,7 +396,6 @@ function applyGlobalStyles() {
         borderRadius: "14px"
     });
 
-    // 필터 라벨 스타일
     const filterLabel = document.querySelector(".filter_label");
     applyStyles(filterLabel, {
         fontSize: "12px",
@@ -467,7 +405,6 @@ function applyGlobalStyles() {
         textTransform: "uppercase"
     });
 
-    // 탭 헤더 스타일링
     document.querySelectorAll(".tab_btn").forEach(btn => {
         applyStyles(btn, {
             flex: "1",
@@ -483,10 +420,8 @@ function applyGlobalStyles() {
         });
     });
 
-    // 활성화 탭 버튼 초기 스타일 설정
     updateTabBtnStyles();
-
-    // 모달 팝업 레이아웃 초기화
+    
     const detailOverlay = document.getElementById("detailOverlay");
     applyStyles(detailOverlay, {
         position: "fixed",
@@ -510,10 +445,7 @@ function applyGlobalStyles() {
         background: "rgba(255, 255, 255, 0.9)",
         backdropFilter: "blur(20px)",
         webkitBackdropFilter: "blur(20px)",
-        width: "500px",
-        height: "72vh",
-        maxHeight: "85%",
-        minHeight: "360px",
+        width: "480px",
         borderRadius: "28px",
         border: "1px solid rgba(255, 255, 255, 0.7)",
         boxShadow: "0 24px 60px rgba(0, 0, 0, 0.15)",
@@ -523,7 +455,6 @@ function applyGlobalStyles() {
         transition: "transform 0.4s cubic" + HYPHEN + "bezier(0.34, 1.56, 0.64, 1)"
     });
 
-    // 지도 타일 이미지 필터 및 폼 요소 디자인 동적 스타일 주입
     const styleEl = document.createElement("style");
     styleEl.textContent = `
         .leaflet${HYPHEN}tile { filter: grayscale(1) brightness(1.05) contrast(0.9) opacity(0.85); }
@@ -891,7 +822,7 @@ function applyGlobalStyles() {
             line${HYPHEN}height: 18px;
             cursor: pointer;
             display: flex;
-            justify-content: center;
+            justify${HYPHEN}content: center;
             align${HYPHEN}items: center;
         }
         
@@ -1021,37 +952,35 @@ function applyGlobalStyles() {
 
         .detail_overlay_container {
             display: none;
-            position: fixed !important;
+            position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            background: rgba(15, 23, 42, 0.55) !important;
-            backdrop${HYPHEN}filter: blur(12px) !important;
-            webkit${HYPHEN}backdrop${HYPHEN}filter: blur(12px) !important;
-            z${HYPHEN}index: 999999 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: rgba(15, 23, 42, 0.45) !important;
+            backdrop${HYPHEN}filter: blur(10px) !important;
+            webkit${HYPHEN}backdrop${HYPHEN}filter: blur(10px) !important;
+            z${HYPHEN}index: 1000 !important;
             align${HYPHEN}items: center;
             justify${HYPHEN}content: center;
-            padding: 16px;
+            padding: 20px;
             box${HYPHEN}sizing: border${HYPHEN}box;
             opacity: 0;
-            border${HYPHEN}radius: 0 !important;
+            border${HYPHEN}radius: 24px;
             transition: opacity 0.3s cubic${HYPHEN}bezier(0.16, 1, 0.3, 1);
             pointer${HYPHEN}events: auto;
         }
 
         .detail_card_wrapper {
             width: 88%;
-            max${HYPHEN}width: 520px;
-            height: 72vh !important;
-            max${HYPHEN}height: 560px !important;
-            min${HYPHEN}height: 360px !important;
+            max${HYPHEN}width: 540px;
+            max${HYPHEN}height: 90%;
             background: #ffffff;
             border${HYPHEN}radius: 24px;
             box${HYPHEN}shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5);
-            display: flex !important;
-            flex${HYPHEN}direction: column !important;
-            overflow: hidden !important;
+            display: flex;
+            flex${HYPHEN}direction: column;
+            overflow: hidden;
             position: relative;
             transform: scale(0.92);
             transition: transform 0.3s cubic${HYPHEN}bezier(0.16, 1, 0.3, 1);
@@ -1059,11 +988,11 @@ function applyGlobalStyles() {
 
         .close_overlay_btn {
             position: absolute;
-            top: 16px;
-            right: 16px;
+            top: 20px;
+            right: 20px;
             z${HYPHEN}index: 30;
-            width: 38px;
-            height: 38px;
+            width: 42px;
+            height: 42px;
             border${HYPHEN}radius: 50%;
             background: rgba(255, 255, 255, 0.85);
             backdrop${HYPHEN}filter: blur(10px);
@@ -1088,27 +1017,23 @@ function applyGlobalStyles() {
 
         .detail_hero_section {
             position: relative;
-            width: 100% !important;
+            width: 100%;
             height: 50% !important;
-            max${HYPHEN}height: 50% !important;
             flex: 0 0 50% !important;
-            min${HYPHEN}height: 0 !important;
+            min${HYPHEN}height: 0;
             background: #0f172a;
-            overflow: hidden !important;
-            display: flex !important;
-            align${HYPHEN}items: center !important;
-            justify${HYPHEN}content: center !important;
+            overflow: hidden;
         }
 
         .detail_sticker_badge {
             position: absolute;
-            top: 16px;
-            left: 16px;
+            top: 20px;
+            left: 20px;
             z${HYPHEN}index: 20;
-            padding: 6px 14px;
-            font${HYPHEN}size: 12px;
+            padding: 8px 18px;
+            font${HYPHEN}size: 13px;
             font${HYPHEN}weight: 700;
-            border${HYPHEN}radius: 20px;
+            border${HYPHEN}radius: 24px;
             background: rgba(255, 255, 255, 0.92);
             backdrop${HYPHEN}filter: blur(12px);
             box${HYPHEN}shadow: 0 8px 20px rgba(0,0,0,0.15);
@@ -1119,23 +1044,15 @@ function applyGlobalStyles() {
         }
 
         .detail_image_container {
-            width: 100% !important;
-            height: 100% !important;
+            width: 100%;
+            height: 100%;
             position: relative;
-            display: flex !important;
-            align${HYPHEN}items: center !important;
-            justify${HYPHEN}content: center !important;
-            background: #0f172a;
-            overflow: hidden !important;
         }
 
         .detail_image_container img {
-            width: 100% !important;
-            height: 100% !important;
-            max${HYPHEN}width: 100% !important;
-            max${HYPHEN}height: 100% !important;
-            object${HYPHEN}fit: contain !important;
-            display: block !important;
+            width: 100%;
+            height: 100%;
+            object${HYPHEN}fit: cover;
         }
 
         .slide_btn {
@@ -1205,17 +1122,14 @@ function applyGlobalStyles() {
 
         .detail_card_body {
             height: 50% !important;
-            max${HYPHEN}height: 50% !important;
-            flex: 0 0 50% !important;
-            min${HYPHEN}height: 0 !important;
-            padding: 20px 24px !important;
-            overflow${HYPHEN}y: auto !important;
-            ${HYPHEN}webkit${HYPHEN}overflow${HYPHEN}scrolling: touch !important;
-            display: flex !important;
-            flex${HYPHEN}direction: column !important;
-            gap: 12px !important;
-            background: #ffffff !important;
-            box${HYPHEN}sizing: border${HYPHEN}box !important;
+            flex: 1 1 50% !important;
+            min${HYPHEN}height: 0;
+            padding: 24px 28px;
+            overflow${HYPHEN}y: auto;
+            display: flex;
+            flex${HYPHEN}direction: column;
+            gap: 16px;
+            background: #ffffff;
         }
 
         .detail_card_body h2 {
@@ -1370,86 +1284,6 @@ function applyGlobalStyles() {
             box${HYPHEN}shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
         }
 
-        /* 🦚 동적 1개~5개 둥근 공작새 부채 (Peacock Arc) 3D 호버 및 거미줄 복귀 0.2초 속도 통일 */
-        /* 🦚 동적 1개~5개 둥근 공작새 부채 (Peacock Arc) 3D 호버 및 거미줄 복귀 0.2초 속도 통일 (20% 확대 적용) */
-        .peacock_cluster_wrapper {
-            position: relative;
-            width: 68px;
-            height: 68px;
-            display: flex;
-            align${HYPHEN}items: center;
-            justify${HYPHEN}content: center;
-            cursor: pointer;
-        }
-
-        .peacock_dynamic_card {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            width: 52px;
-            height: 52px;
-            border${HYPHEN}radius: 50%;
-            background: #ffffff;
-            border: 2.8px solid #2563eb;
-            box${HYPHEN}shadow: 0 8px 22px rgba(0,0,0,0.3);
-            display: flex;
-            align${HYPHEN}items: center;
-            justify${HYPHEN}content: center;
-            opacity: 0;
-            transform: scale(0.3) translate(0, 0);
-            transition: all 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1) !important;
-            pointer${HYPHEN}events: none;
-            z${HYPHEN}index: 1;
-            overflow: hidden;
-        }
-
-        .peacock_cluster_wrapper:hover .peacock_dynamic_card {
-            opacity: 1;
-            transform: rotate(var(${HYPHEN}${HYPHEN}rot)) translate(var(${HYPHEN}${HYPHEN}tx), var(${HYPHEN}${HYPHEN}ty)) scale(0.92);
-            z${HYPHEN}index: var(${HYPHEN}${HYPHEN}zidx);
-        }
-
-        .peacock_cluster_main {
-            position: relative;
-            width: 62px;
-            height: 62px;
-            border${HYPHEN}radius: 50%;
-            background: #ffffff;
-            border: 4px solid #2563eb;
-            box${HYPHEN}shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
-            display: flex;
-            align${HYPHEN}items: center;
-            justify${HYPHEN}content: center;
-            z${HYPHEN}index: 20;
-            transition: transform 0.2s ease !important;
-        }
-
-        .peacock_cluster_wrapper:hover .peacock_cluster_main {
-            transform: scale(1.1);
-            box${HYPHEN}shadow: 0 14px 32px rgba(37, 99, 235, 0.5);
-        }
-
-        /* 🕷️ 거미줄 펼침 및 복귀(Unspiderfy) 트랜지션 0.2초 초고속 통일 */
-        .leaflet${HYPHEN}cluster${HYPHEN}spider${HYPHEN}leg {
-            transition: all 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1) !important;
-        }
-
-        .leaflet${HYPHEN}marker${HYPHEN}icon {
-            transition: transform 0.2s cubic${HYPHEN}bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease !important;
-        }
-
-        /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 완벽 최적화: 수직 바닥 끝까지 자율 스크롤 해제 */
-        html, body {
-            min${HYPHEN}height: 100vh !important;
-            height: auto !important;
-            overflow${HYPHEN}y: auto !important;
-        }
-
-        /* 모바일 바텀 시트 손잡이 바 기본 숨김 */
-        .bottom_sheet_handle {
-            display: none;
-        }
-
         /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 구글맵/카카오맵 스타일 네이티브 바텀 시트 적용 */
         @media screen and (orientation: portrait), screen and (max${HYPHEN}width: 900px) {
             #appContainer {
@@ -1466,7 +1300,6 @@ function applyGlobalStyles() {
                 padding: 8px 12px 6px 12px !important;
             }
 
-            /* 세로모드에서 빅뱅 필터를 제외한 로고 및 메인 타이틀, 필터 라벨 깔끔 숨김 */
             .logo_section, .filter_label {
                 display: none !important;
             }
@@ -1497,7 +1330,6 @@ function applyGlobalStyles() {
                 flex${HYPHEN}shrink: 0 !important;
             }
 
-            /* 세로모드에서 학생모드 / 관리자모드 섹션 깔끔하게 숨김 */
             .mode_section {
                 display: none !important;
             }
@@ -1566,7 +1398,6 @@ function applyGlobalStyles() {
                 cursor: pointer;
             }
 
-            /* 세로모드에서 중복 탭 타이틀 "활동 목록" 깔끔하게 숨김 처리 */
             .panel_tabs #tabListBtn {
                 display: none !important;
             }
@@ -1586,7 +1417,6 @@ function applyGlobalStyles() {
                 overflow: hidden !important;
             }
 
-            /* 3단계 바텀시트 고도 상태 */
             #sidePanel.collapsed {
                 height: 54px !important;
             }
@@ -1618,31 +1448,30 @@ function applyGlobalStyles() {
                 width: 100% !important;
                 min${HYPHEN}width: 100% !important;
                 max${HYPHEN}width: 100% !important;
-                height: auto !important;
-                flex${HYPHEN}shrink: 0 !important;
-                box${HYPHEN}sizing: border${HYPHEN}box !important;
             }
 
-            /* 다양한 패드 기기 스크린 높이 비율(68vh) 자동 맞춤 및 설명 내부 독립 스크롤 지정 */
+            .detail_overlay_container {
+                padding: 12px !important;
+            }
+
             .detail_card_wrapper {
-                width: 92% !important;
-                max${HYPHEN}width: 480px !important;
-                height: 68vh !important;
-                max${HYPHEN}height: 520px !important;
-                min${HYPHEN}height: 320px !important;
+                width: 100% !important;
+                max${HYPHEN}width: 100% !important;
+                height: 82vh !important;
+                max${HYPHEN}height: 82vh !important;
+                border${HYPHEN}radius: 28px !important;
             }
 
             .detail_hero_section {
-                height: 50% !important;
-                max${HYPHEN}height: 50% !important;
-                flex: 0 0 50% !important;
-                min${HYPHEN}height: 0 !important;
+                height: 44% !important;
+                max${HYPHEN}height: 44% !important;
+                flex: 0 0 44% !important;
             }
 
             .detail_card_body {
-                height: 50% !important;
-                max${HYPHEN}height: 50% !important;
-                flex: 0 0 50% !important;
+                height: 56% !important;
+                max${HYPHEN}height: 56% !important;
+                flex: 0 0 56% !important;
                 min${HYPHEN}height: 0 !important;
                 padding: 14px 18px !important;
                 gap: 10px !important;
@@ -1669,7 +1498,6 @@ function applyGlobalStyles() {
     document.head.appendChild(styleEl);
 }
 
-// 이용자(학생) 모드 및 관리자 모드 상태 전환
 function switchUserMode(mode) {
     if (mode === "admin") {
         const pw = prompt("관리자 비밀번호를 입력하세요.");
@@ -1685,15 +1513,13 @@ function switchUserMode(mode) {
     showToast(mode === "admin" ? "🔑 관리자 모드로 전환되었습니다." : "👥 학생 모드로 전환되었습니다.");
 }
 
-// 모드 상태에 따른 UI 요소 제어 및 노출 여부 관리
 function updateModeUI() {
     const userBtn = document.getElementById("modeUserBtn");
     const adminBtn = document.getElementById("modeAdminBtn");
     const tabAddBtn = document.getElementById("tabAddBtn");
     const mapInst = document.getElementById("mapInstruction");
     const syncCloudBtn = document.getElementById("syncCloudBtn");
-
-    // 1. 모드 토글 스위치 액티브 스타일 제어
+    
     if (state.userMode === "admin") {
         userBtn.classList.remove("active");
         adminBtn.classList.add("active");
@@ -1707,8 +1533,7 @@ function updateModeUI() {
             color: "#64748b",
             boxShadow: "none"
         });
-
-        // 관리자는 활동 등록 탭 및 클라우드 동기화 도구 노출
+        
         applyStyles(tabAddBtn, { display: "block" });
         if (syncCloudBtn) {
             applyStyles(syncCloudBtn, { display: "inline-flex" });
@@ -1729,8 +1554,7 @@ function updateModeUI() {
             color: "#64748b",
             boxShadow: "none"
         });
-
-        // 학생은 활동 등록 탭 및 클라우드 동기화 버튼 완벽 숨김
+        
         applyStyles(tabAddBtn, { display: "none" });
         if (syncCloudBtn) {
             applyStyles(syncCloudBtn, { display: "none" });
@@ -1738,23 +1562,20 @@ function updateModeUI() {
         if (mapInst) {
             mapInst.innerHTML = "<p>💡 지도 위의 활동 스티커를 클릭하면 자세한 내용을 볼 수 있습니다.</p>";
         }
-
-        // 만약 현재 활동 등록 탭이 열려있다면 즉시 활동 목록 탭으로 복귀
+        
         const addTab = document.getElementById("tabAdd");
         if (addTab && addTab.classList.contains("active")) {
             switchTab("list");
         }
     }
-
-    // 2. 개별 리스트 카드 내 삭제 버튼 표시 여부 실시간 반영을 위해 리스트 재렌더링
+    
     updateActivityList();
 }
 
-// 탭 활성화 여부에 따른 버튼 스타일 갱신
 function updateTabBtnStyles() {
     const listBtn = document.getElementById("tabListBtn");
     const addBtn = document.getElementById("tabAddBtn");
-
+    
     if (listBtn.classList.contains("active")) {
         applyStyles(listBtn, {
             background: "#ffffff",
@@ -1780,13 +1601,11 @@ function updateTabBtnStyles() {
     }
 }
 
-// 지도 인스턴스 기동 및 부드러운 터치 줌 설정
 function initMap() {
-    // 나주시의 중심 좌표 및 적절한 줌 레벨
     const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
     const najuCenter = [35.016, 126.716];
     const initialZoom = isPortrait ? 10.4 : 11;
-
+    
     state.map = L.map("map", {
         zoomControl: false,
         minZoom: 8,
@@ -1796,27 +1615,24 @@ function initMap() {
         attributionControl: true
     }).setView(najuCenter, initialZoom);
 
-    // 기본 영문 'Leaflet |' 출처 접두어를 깔끔한 한글 인포맵 문구로 교체
     if (state.map.attributionControl) {
-        state.map.attributionControl.setPrefix("🗺️ 다시초 지역연계 인포맵 | ");
+        state.map.attributionControl.setPrefix("🗺️ 나주 지역연계 인포맵 | ");
     }
 
     setTimeout(() => {
         state.map.invalidateSize();
     }, 100);
 
-    // 100% 대한민국 최신 한글 행정구역명을 제공하는 국토교통부 VWorld 국산 정밀 지도 타일 연동
     const primaryTileUrl = "https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png";
     const secondaryTileUrl = "https://xdworld.vworld.kr/2d/white/service/{z}/{x}/{y}.png";
     const attribution = "&copy; 대한민국 국토교통부 VWorld 공간정보 오픈플랫폼";
-
+    
     const mainTileLayer = L.tileLayer(primaryTileUrl, {
         attribution: attribution,
         maxZoom: 19,
         maxNativeZoom: 18
     }).addTo(state.map);
 
-    // 타일 로딩 예외 시 국산 백지도 2순위 레이어로 자동 전환
     mainTileLayer.on("tileerror", () => {
         if (!state.fallbackTileAdded) {
             state.fallbackTileAdded = true;
@@ -1827,7 +1643,6 @@ function initMap() {
         }
     });
 
-    // 1번 기능: 스마트 사진 클러스터링 & 🦚 공작새 부채(Peacock Fan) 롤오버 그룹 레이어 세팅
     if (typeof L.markerClusterGroup === "function") {
         state.markerClusterGroup = L.markerClusterGroup({
             showCoverageOnHover: false,
@@ -1839,104 +1654,60 @@ function initMap() {
             iconCreateFunction: function (cluster) {
                 const count = cluster.getChildCount();
                 const childMarkers = cluster.getAllChildMarkers();
-
-                // 묶음 내 마커들의 실제 대표 사진 URL 및 스티커 정보 추출
-                let cardItems = [];
-                childMarkers.forEach(m => {
-                    if (m && m.activityId) {
-                        const act = state.activities.find(a => a.id === m.activityId);
-                        if (act) {
-                            const hasRealImg = act.images && act.images.length > 0 && act.images[0] && act.images[0] !== BACKUP_IMAGE;
-                            const thumb = hasRealImg ? act.images[0] : null;
-                            const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
-                            cardItems.push({
-                                thumb: thumb,
-                                emoji: sticker.emoji,
-                                color: sticker.color
-                            });
-                        }
+                let sampleThumb = null;
+                
+                for (let i = 0; i < childMarkers.length; i++) {
+                    const actId = childMarkers[i].activityId;
+                    const actObj = state.activities.find(a => a.id === actId);
+                    if (actObj && actObj.images && actObj.images.length > 0 && actObj.images[0] && actObj.images[0] !== BACKUP_IMAGE) {
+                        sampleThumb = actObj.images[0];
+                        break;
                     }
-                });
-
-                // 최소 1개, 최대 5개까지 유연하게 표시
-                const totalDisplay = Math.min(cardItems.length > 0 ? cardItems.length : 1, 5);
-                const displayItems = cardItems.length > 0 ? cardItems.slice(0, totalDisplay) : [{ thumb: null, emoji: "📸", color: "#2563eb" }];
-
-                // N개 (1~5개)에 맞춘 부채꼴 각도 및 둥근 아치 궤적 수학 공식 연산
-                let fanCardsHtml = "";
-                let startAngle = 0;
-                let angleStep = 0;
-
-                if (totalDisplay === 1) {
-                    startAngle = 0;
-                    angleStep = 0;
-                } else if (totalDisplay === 2) {
-                    startAngle = -26;
-                    angleStep = 52;
-                } else if (totalDisplay === 3) {
-                    startAngle = -42;
-                    angleStep = 42;
-                } else if (totalDisplay === 4) {
-                    startAngle = -51;
-                    angleStep = 34;
-                } else if (totalDisplay >= 5) {
-                    startAngle = -60;
-                    angleStep = 30;
                 }
 
-                const R = 44; // 떠오르는 아치 반경 (px)
-
-                displayItems.forEach((item, idx) => {
-                    const angle = startAngle + (idx * angleStep);
-                    const rad = angle * (Math.PI / 180);
-                    const tx = Math.round(R * Math.sin(rad));
-                    const ty = Math.round(-R * Math.cos(rad));
-
-                    let innerHtml = item.thumb
-                        ? `<img src="${item.thumb}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" />`
-                        : `<span style="font-size:16px;">${item.emoji}</span>`;
-
-                    fanCardsHtml += `
-                        <div class="peacock_dynamic_card" style="
-                            --tx: ${tx}px;
-                            --ty: ${ty}px;
-                            --rot: ${angle}deg;
-                            --zidx: ${10 + idx};
-                            border-color: ${item.color || '#2563eb'};
-                        ">
-                            ${innerHtml}
-                        </div>
-                    `;
-                });
-
-                const mainThumb = (cardItems.length > 0 && cardItems[0].thumb)
-                    ? `<img src="${cardItems[0].thumb}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" />`
-                    : `<span style="font-size: 20px;">📸</span>`;
+                let thumbHtml = "";
+                if (sampleThumb) {
+                    thumbHtml = `<img src="${sampleThumb}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" />`;
+                } else {
+                    thumbHtml = `<span style="font-size: 18px;">🦚</span>`;
+                }
 
                 return L.divIcon({
                     html: `
-                        <div class="peacock_cluster_wrapper">
-                            <!-- 🦚 동적 1개~5개 둥근 공작새 아치 카드들 -->
-                            ${fanCardsHtml}
-
-                            <!-- 메인 묶음 마커 -->
-                            <div class="peacock_cluster_main">
-                                ${mainThumb}
-                                <div style="
-                                    position: absolute;
-                                    top: -4px;
-                                    right: -4px;
-                                    background: linear-gradient(135deg, #2563eb, #3b82f6);
-                                    color: #ffffff;
-                                    font-size: 11px;
-                                    font-weight: 800;
-                                    padding: 2px 7px;
-                                    border-radius: 12px;
-                                    border: 2px solid #ffffff;
-                                    box-shadow: 0 3px 8px rgba(0,0,0,0.22);
-                                    z-index: 25;
-                                ">${count}</div>
+                        <div class="peacock_cluster_wrapper" style="
+                            position: relative;
+                            width: 56px;
+                            height: 56px;
+                            border-radius: 50%;
+                            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                            border: 3px solid #ffffff;
+                            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                        ">
+                            <div style="width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #ffffff; display: flex; align-items: center; justify-content: center;">
+                                ${thumbHtml}
                             </div>
+                            <div style="
+                                position: absolute;
+                                top: -4px;
+                                right: -4px;
+                                background: #ef4444;
+                                color: white;
+                                font-size: 11px;
+                                font-weight: 800;
+                                width: 22px;
+                                height: 22px;
+                                border-radius: 50%;
+                                border: 2px solid #ffffff;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                            ">${count}</div>
                         </div>
                     `,
                     className: "custom_peacock_cluster_icon",
@@ -1948,14 +1719,11 @@ function initMap() {
         state.map.addLayer(state.markerClusterGroup);
     }
 
-    // 구식 +/- 버튼 대신 터치 스크린 전용 부드러운 수직 줌 스크롤 슬라이더 탑재
     setupTouchZoomSlider();
-
-    // 지도 클릭 이벤트: 활동 목록 모드에서는 최초 중심점 복귀, 등록 모드에서는 좌표 등록
+    
     state.map.on("click", (e) => {
         const listTab = document.getElementById("tabList");
         if (listTab && listTab.classList.contains("active")) {
-            // 활동 목록 모드에서 빈 지도를 클릭한 경우 최초 지도 사이즈 및 나주시 중심점으로 복귀
             resetToInitialState();
             return;
         }
@@ -1970,7 +1738,6 @@ function initMap() {
     });
 }
 
-// 부드러운 터치 수직 줌 스크롤 슬라이더 컨트롤러 생성
 function setupTouchZoomSlider() {
     if (!state.map) return;
 
@@ -1981,7 +1748,6 @@ function setupTouchZoomSlider() {
             L.DomEvent.disableClickPropagation(container);
             L.DomEvent.disableScrollPropagation(container);
 
-            // 확대 단추 (＋)
             const zoomInBtn = document.createElement("button");
             zoomInBtn.type = "button";
             zoomInBtn.className = "zoom_icon_btn";
@@ -1995,11 +1761,9 @@ function setupTouchZoomSlider() {
                 }
             });
 
-            // 슬라이더 스크롤 트랙
             const track = document.createElement("div");
             track.className = "zoom_slider_track";
 
-            // 터치 스크롤 레인지 슬라이더 (정수 줌 step 1 적용으로 소수점 타일 계산 에러 차단)
             const slider = document.createElement("input");
             slider.type = "range";
             slider.className = "zoom_range_input";
@@ -2008,7 +1772,6 @@ function setupTouchZoomSlider() {
             slider.step = 1;
             slider.value = Math.round(map.getZoom());
 
-            // 터치/드래그 스크롤 시 정수 줌으로 안전하게 갱신
             slider.addEventListener("input", (e) => {
                 const newZoom = Math.round(parseFloat(e.target.value));
                 if (map.getZoom() !== newZoom) {
@@ -2016,12 +1779,10 @@ function setupTouchZoomSlider() {
                 }
             });
 
-            // 지도 상에서 줌이 일어날 때 슬라이더 노브 위치 정수형 동기화
             map.on("zoom zoomend", () => {
                 slider.value = Math.round(map.getZoom());
             });
 
-            // 축소 단추 (－)
             const zoomOutBtn = document.createElement("button");
             zoomOutBtn.type = "button";
             zoomOutBtn.className = "zoom_icon_btn";
@@ -2047,11 +1808,10 @@ function setupTouchZoomSlider() {
     state.map.addControl(new ZoomSliderControl());
 }
 
-// 특정 경위도 좌표에서 등록 폼 탭 열기
 function openRegisterFormAt(lat, lng) {
     state.selectedLat = lat;
     state.selectedLng = lng;
-
+    
     const display = document.getElementById("coordsDisplay");
     display.textContent = `위도: ${lat.toFixed(5)}, 경도: ${lng.toFixed(5)}`;
     applyStyles(display, {
@@ -2062,18 +1822,16 @@ function openRegisterFormAt(lat, lng) {
 
     document.getElementById("inputLat").value = lat;
     document.getElementById("inputLng").value = lng;
-
-    // 탭을 활동 등록으로 변경
+    
     switchTab("add");
 }
 
-// 탭 스위칭 로직
 function switchTab(tabType) {
     const listTab = document.getElementById("tabList");
     const addTab = document.getElementById("tabAdd");
     const listBtn = document.getElementById("tabListBtn");
     const addBtn = document.getElementById("tabAddBtn");
-
+    
     if (tabType === "list") {
         listTab.classList.add("active");
         addTab.classList.remove("active");
@@ -2092,15 +1850,13 @@ function switchTab(tabType) {
     updateTabBtnStyles();
 }
 
-// 나주시 행정구역 경계선 및 읍면동 정밀 데이터 획득 (공식 행정동 및 시군구 데이터 연동)
 function fetchNajuBoundaries() {
     const cacheKey = "naju_umd_geojson_v4";
     const cachedData = localStorage.getItem(cacheKey);
-
+    
     if (cachedData) {
         try {
             const geojson = JSON.parse(cachedData);
-            // 최소 5개 이상의 features 행정구역 데이터가 있어야 정상 캐시로 판단하여 렌더링
             if (geojson && geojson.features && geojson.features.length > 5) {
                 drawUmdBoundaries(geojson);
                 hideMapLoader();
@@ -2111,83 +1867,78 @@ function fetchNajuBoundaries() {
             localStorage.removeItem(cacheKey);
         }
     }
-
-    // 오픈소스 행정경계 저장소 데이터 주소 조합 (하이픈 제외)
+    
     const repoPart = "Local_HangJeongDong";
     const mapRepoPart = "southkorea" + HYPHEN + "maps";
-
+    
     const umdUrl = `https://raw.githubusercontent.com/raqoon886/${repoPart}/master/hangjeongdong_%EC%A0%84%EB%9D%BC%EB%82%A8%EB%8F%84.geojson`;
     const sggUrl = `https://raw.githubusercontent.com/southkorea/${mapRepoPart}/master/kostat/2018/json/skorea${HYPHEN}municipalities${HYPHEN}2018${HYPHEN}geo.json`;
-
+    
     Promise.all([
         fetch(umdUrl).then(res => res.json()),
         fetch(sggUrl).then(res => res.json())
     ])
-        .then(([umdData, sggData]) => {
-            // 1. 나주시 행정동 필터링 (행정동 레벨 8)
-            const umdFeatures = umdData.features.filter(f => {
-                const code = f.properties.sgg || f.properties.sigungu || "";
-                const name = f.properties.sggnm || f.properties.sigungunm || "";
-                return name === "나주시" || code.toString() === "46170";
-            }).map(f => {
-                const cleanName = f.properties.dongnm || f.properties.adm_nm.split(" ").pop();
-                return {
-                    type: "Feature",
-                    properties: {
-                        name: cleanName,
-                        adminLevel: "8",
-                        type: "읍면동"
-                    },
-                    geometry: f.geometry
-                };
-            });
-
-            // 2. 나주시 전체 시경계 필터링 (시군구 레벨 6)
-            const sggFeature = sggData.features.find(f => {
-                const code = f.properties.code || "";
-                const name = f.properties.name || "";
-                return name === "나주시" || code.toString() === "46170";
-            });
-
-            const finalFeatures = [...umdFeatures];
-            if (sggFeature) {
-                finalFeatures.push({
-                    type: "Feature",
-                    properties: {
-                        name: "나주시",
-                        adminLevel: "6",
-                        type: "시경계"
-                    },
-                    geometry: sggFeature.geometry
-                });
-            }
-
-            const geojson = {
-                type: "FeatureCollection",
-                features: finalFeatures
+    .then(([umdData, sggData]) => {
+        const umdFeatures = umdData.features.filter(f => {
+            const code = f.properties.sgg || f.properties.sigungu || "";
+            const name = f.properties.sggnm || f.properties.sigungunm || "";
+            return name === "나주시" || code.toString() === "46170";
+        }).map(f => {
+            const cleanName = f.properties.dongnm || f.properties.adm_nm.split(" ").pop();
+            return {
+                type: "Feature",
+                properties: {
+                    name: cleanName,
+                    adminLevel: "8",
+                    type: "읍면동"
+                },
+                geometry: f.geometry
             };
-
-            // 행정동 필터 개수가 정상적일 때만 정상 캐싱 및 렌더링
-            if (finalFeatures.length > 5) {
-                localStorage.setItem(cacheKey, JSON.stringify(geojson));
-                drawUmdBoundaries(geojson);
-            } else {
-                throw new Error("정상적인 나주시 행정경계 개수가 아닙니다.");
-            }
-            hideMapLoader();
-        })
-        .catch(err => {
-            console.error("경계 데이터 획득 에러, 정적 백업 데이터로 복원합니다", err);
-            if (typeof NAJU_BACKUP_GEOJSON !== "undefined") {
-                drawUmdBoundaries(NAJU_BACKUP_GEOJSON);
-            } else {
-                showToast("나주시 행정구역 경계를 불러오는 데 실패했습니다.");
-            }
-            hideMapLoader();
         });
+
+        const sggFeature = sggData.features.find(f => {
+            const code = f.properties.code || "";
+            const name = f.properties.name || "";
+            return name === "나주시" || code.toString() === "46170";
+        });
+
+        const finalFeatures = [...umdFeatures];
+        if (sggFeature) {
+            finalFeatures.push({
+                type: "Feature",
+                properties: {
+                    name: "나주시",
+                    adminLevel: "6",
+                    type: "시경계"
+                },
+                geometry: sggFeature.geometry
+            });
+        }
+
+        const geojson = {
+            type: "FeatureCollection",
+            features: finalFeatures
+        };
+
+        if (finalFeatures.length > 5) {
+            localStorage.setItem(cacheKey, JSON.stringify(geojson));
+            drawUmdBoundaries(geojson);
+        } else {
+            throw new Error("정상적인 나주시 행정경계 개수가 아닙니다.");
+        }
+        hideMapLoader();
+    })
+    .catch(err => {
+        console.error("경계 데이터 획득 에러, 정적 백업 데이터로 복원합니다", err);
+        if (typeof NAJU_BACKUP_GEOJSON !== "undefined") {
+            drawUmdBoundaries(NAJU_BACKUP_GEOJSON);
+        } else {
+            showToast("나주시 행정구역 경계를 불러오는 데 실패했습니다.");
+        }
+        hideMapLoader();
+    });
 }
 
-// 지도 위에 정밀 읍면동 경계선 그리기 및 상호작용 설정
 function drawUmdBoundaries(geojson) {
     if (state.umdLayer) {
         state.map.removeLayer(state.umdLayer);
@@ -2197,7 +1948,6 @@ function drawUmdBoundaries(geojson) {
         style: function (feature) {
             const level = feature.properties.adminLevel;
             if (level === "6") {
-                // 나주시 전체 시 경계 스타일 (진하고 굵은 경계선)
                 return {
                     color: "#1e3a8a",
                     weight: 3.5,
@@ -2205,10 +1955,9 @@ function drawUmdBoundaries(geojson) {
                     fillOpacity: 0,
                     lineCap: "round",
                     lineJoin: "round",
-                    interactive: false // 시경계선이 읍면동 클릭을 가로막지 않도록 인터랙티브 비활성화
+                    interactive: false
                 };
             } else {
-                // 개별 읍면동 경계선 스타일 (연하고 얇은 점선)
                 return {
                     color: "#818cf8",
                     weight: 1.2,
@@ -2220,10 +1969,8 @@ function drawUmdBoundaries(geojson) {
             }
         },
         onEachFeature: function (feature, layer) {
-            // 시경계(레벨6)는 단순 장식용 외곽선이므로 이벤트를 걸지 않고 조기 리턴
             if (feature.properties.adminLevel === "6") return;
 
-            // 읍면동(레벨8)에 대해서만 마우스 및 클릭 이벤트 연동
             layer.on("mouseover", (e) => {
                 const polygon = e.target;
                 polygon.setStyle({
@@ -2262,16 +2009,10 @@ function drawUmdBoundaries(geojson) {
         }
     }).addTo(state.map);
 
-    // 저장된 마커 재배치
     renderActivitiesOnMap();
-
-    // 📱 세로모드 첫 접속 진입 시에도 빈 공간 클릭 시와 100% 동일하게 최고 좋은 화면 위치로 0초 자동 정밀 포커싱!
     resetToInitialState();
 }
 
-
-
-// 다중 업로드 이미지 프리뷰 리스트 렌더링
 function renderPreviewList() {
     const previewList = document.getElementById("imagePreviewList");
     if (!previewList) return;
@@ -2301,14 +2042,12 @@ function renderPreviewList() {
     });
 }
 
-// 이미지 미리보기 영역 숨김
 function hideImagePreview() {
     const previewList = document.getElementById("imagePreviewList");
     if (previewList) previewList.innerHTML = "";
     state.selectedImages = [];
 }
 
-// 이벤트 핸들러 일괄 매핑
 function setupEventListeners() {
     const listBtn = document.getElementById("tabListBtn");
     const addBtn = document.getElementById("tabAddBtn");
@@ -2320,11 +2059,6 @@ function setupEventListeners() {
     const modeAdminBtn = document.getElementById("modeAdminBtn");
     const syncCloudBtn = document.getElementById("syncCloudBtn");
 
-    const searchAddressBtn = document.getElementById("searchAddressBtn");
-    const inputAddress = document.getElementById("inputAddress");
-    const inputCSVFile = document.getElementById("inputCSVFile");
-    const downloadCSVTemplateBtn = document.getElementById("downloadCSVTemplateBtn");
-
     listBtn.addEventListener("click", () => switchTab("list"));
     addBtn.addEventListener("click", () => switchTab("add"));
 
@@ -2335,46 +2069,6 @@ function setupEventListeners() {
         syncCloudBtn.addEventListener("click", uploadLocalDataToFirebase);
     }
 
-    // 주소 검색 버튼 및 엔터 키 연동
-    if (searchAddressBtn && inputAddress) {
-        searchAddressBtn.addEventListener("click", () => {
-            const addr = inputAddress.value.trim();
-            if (addr) {
-                searchAddressToCoords(addr);
-            } else {
-                showToast("검색할 주소를 입력해 주세요.");
-            }
-        });
-        inputAddress.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                const addr = inputAddress.value.trim();
-                if (addr) {
-                    searchAddressToCoords(addr);
-                } else {
-                    showToast("검색할 주소를 입력해 주세요.");
-                }
-            }
-        });
-    }
-
-    // CSV 파일 일괄 업로드 및 샘플 템플릿 다운로드 연동
-    if (inputCSVFile) {
-        inputCSVFile.addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                handleCSVUpload(file);
-                inputCSVFile.value = "";
-            }
-        });
-    }
-    if (downloadCSVTemplateBtn) {
-        downloadCSVTemplateBtn.addEventListener("click", () => {
-            downloadCSVTemplate();
-        });
-    }
-
-    // 오버레이 클릭 시 닫기
     closeBtn.addEventListener("click", hideDetailOverlay);
     detailOverlay.addEventListener("click", (e) => {
         if (e.target === detailOverlay) {
@@ -2382,44 +2076,6 @@ function setupEventListeners() {
         }
     });
 
-    // 이미지 캔버스 리사이징 및 획기적 용량 압축 (localStorage 5MB 제한 회피용)
-    function compressImage(dataUrl, callback, maxWidth = 800, maxHeight = 800, quality = 0.7) {
-        const img = new Image();
-        img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > maxWidth) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
-                }
-            } else {
-                if (height > maxHeight) {
-                    width = Math.round((width * maxHeight) / height);
-                    height = maxHeight;
-                }
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // JPEG 0.7 품질로 압축하여 DataURL 크기를 30~80KB 수준으로 최소화
-            const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
-            callback(compressedDataUrl);
-        };
-        img.onerror = () => {
-            // 에러 시 원본 사용
-            callback(dataUrl);
-        };
-        img.src = dataUrl;
-    }
-
-    // 다중 파일 업로드 처리 (캔버스 자동 리사이징 및 압축 적용)
     fileInput.addEventListener("change", (e) => {
         const files = Array.from(e.target.files);
         let loadedCount = 0;
@@ -2427,7 +2083,6 @@ function setupEventListeners() {
         files.forEach(file => {
             const reader = new FileReader();
             reader.onload = (event) => {
-                // 캔버스 압축을 거쳐 용량을 99% 축소
                 compressImage(event.target.result, (compressedUrl) => {
                     state.selectedImages.push(compressedUrl);
                     loadedCount++;
@@ -2438,10 +2093,9 @@ function setupEventListeners() {
             };
             reader.readAsDataURL(file);
         });
-        fileInput.value = ""; // 동일 파일 재선택 가능 처리
+        fileInput.value = "";
     });
 
-    // 대표 스티커 카테고리 셀렉터 동작
     document.querySelectorAll(".sticker_option").forEach(opt => {
         opt.addEventListener("click", () => {
             document.querySelectorAll(".sticker_option").forEach(el => el.classList.remove("active"));
@@ -2452,21 +2106,6 @@ function setupEventListeners() {
         });
     });
 
-    // BIGBANG 칩 클릭 바인딩
-    document.querySelectorAll(".grade_chip").forEach(chip => {
-        chip.addEventListener("click", () => {
-            const val = chip.dataset.value;
-            if (state.selectedGrades.includes(val)) {
-                state.selectedGrades = state.selectedGrades.filter(g => g !== val);
-                chip.classList.remove("active");
-            } else {
-                state.selectedGrades.push(val);
-                chip.classList.add("active");
-            }
-        });
-    });
-
-    // 등록 폼 제출 및 완결 단추 클릭 이벤트 매핑
     activityForm.addEventListener("submit", (e) => {
         e.preventDefault();
         saveActivityRecord();
@@ -2480,7 +2119,6 @@ function setupEventListeners() {
         });
     }
 
-    // BIGBANG 필터 버튼 바인딩
     document.querySelectorAll(".filter_btn").forEach(btn => {
         btn.addEventListener("click", () => {
             document.querySelectorAll(".filter_btn").forEach(el => el.classList.remove("active"));
@@ -2490,9 +2128,273 @@ function setupEventListeners() {
             applyCategoryFilter();
         });
     });
+
+    const searchAddrBtn = document.getElementById("searchAddressBtn");
+    if (searchAddrBtn) {
+        searchAddrBtn.addEventListener("click", searchLocationByAddress);
+    }
+
+    const exportBtn = document.getElementById("exportCSVBtn");
+    if (exportBtn) {
+        exportBtn.addEventListener("click", exportActivitiesToCSV);
+    }
+
+    const csvFileInput = document.getElementById("inputCSVFile");
+    if (csvFileInput) {
+        csvFileInput.addEventListener("change", handleCSVUpload);
+    }
+
+    const templateBtn = document.getElementById("downloadCSVTemplateBtn");
+    if (templateBtn) {
+        templateBtn.addEventListener("click", downloadCSVTemplate);
+    }
+
+    setupBottomSheet();
 }
 
-// 상단 카테고리 필터를 '전체(all)'로 자동 리셋
+function searchLocationByAddress() {
+    const inputAddr = document.getElementById("inputAddress");
+    if (!inputAddr) return;
+    const addressQuery = inputAddr.value.trim();
+
+    if (!addressQuery) {
+        showToast("찾으실 도로명 또는 지번 주소를 입력해 주세요.");
+        return;
+    }
+
+    const searchBtn = document.getElementById("searchAddressBtn");
+    if (searchBtn) searchBtn.textContent = "🔍 검색 중...";
+
+    const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`;
+
+    fetch(geocodeUrl)
+        .then(res => res.json())
+        .then(data => {
+            if (searchBtn) searchBtn.textContent = "🔍 위치 찾기";
+            if (data && data.length > 0) {
+                const result = data[0];
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+
+                state.selectedLat = lat;
+                state.selectedLng = lng;
+
+                document.getElementById("inputLat").value = lat;
+                document.getElementById("inputLng").value = lng;
+
+                const display = document.getElementById("coordsDisplay");
+                if (display) {
+                    display.textContent = `📍 주소 위치가 산출되었습니다 (${result.display_name.split(",")[0]})`;
+                    applyStyles(display, {
+                        background: "#eff6ff",
+                        color: "#2563eb",
+                        borderColor: "#bfdbfe"
+                    });
+                }
+
+                if (state.map) {
+                    state.map.flyTo([lat, lng], 16, {
+                        animate: true,
+                        duration: 1.2
+                    });
+                }
+                showToast("📍 검색된 주소 위치로 이동하였습니다!");
+            } else {
+                showToast("주소 검색 결과를 찾을 수 없습니다. 좀 더 정확한 도로명 주소를 입력해 주세요.");
+            }
+        })
+        .catch(err => {
+            if (searchBtn) searchBtn.textContent = "🔍 위치 찾기";
+            showToast("주소 지오코딩 검색 중 에러가 발생했습니다.");
+        });
+}
+
+function exportActivitiesToCSV() {
+    if (!state.activities || state.activities.length === 0) {
+        showToast("다운로드할 등록 데이터가 없습니다.");
+        return;
+    }
+
+    let csvContent = "\uFEFFid,title,sticker,content,address,lat,lng,images\n";
+
+    state.activities.forEach(act => {
+        const id = act.id || "";
+        const title = `"${(act.title || "").replace(/"/g, '""')}"`;
+        const sticker = act.sticker || "b_yuchoyium";
+        const content = `"${(act.content || "").replace(/"/g, '""')}"`;
+        const address = `"${(act.address || "").replace(/"/g, '""')}"`;
+        const lat = act.lat || "";
+        const lng = act.lng || "";
+        const imagesStr = `"${(act.images && act.images.length > 0 ? act.images.join(";") : "").replace(/"/g, '""')}"`;
+
+        csvContent += `${id},${title},${sticker},${content},${address},${lat},${lng},${imagesStr}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `naju_activities_export_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast("📤 현재 등록 데이터가 CSV 파일로 성공적으로 추출되었습니다!");
+}
+
+function handleCSVUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+        const text = evt.target.result;
+        const lines = text.split(/\r\n|\n/);
+        if (lines.length <= 1) {
+            showToast("CSV 파일에 읽을 데이터가 없습니다.");
+            return;
+        }
+
+        let countUpdated = 0;
+        let countInserted = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const cols = [];
+            let inQuotes = false;
+            let currentVal = "";
+
+            for (let c = 0; c < line.length; c++) {
+                const char = line[c];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    cols.push(currentVal);
+                    currentVal = "";
+                } else {
+                    currentVal += char;
+                }
+            }
+            cols.push(currentVal);
+
+            const cleanCols = cols.map(col => col.replace(/^"/, "").replace(/"$/, "").replace(/""/g, '"').trim());
+
+            if (cleanCols.length < 3) continue;
+
+            const rowId = cleanCols[0] || "";
+            const title = cleanCols[1] || "무제 활동";
+            const sticker = STICKER_TYPES[cleanCols[2]] ? cleanCols[2] : "b_yuchoyium";
+            const content = cleanCols[3] || "";
+            const address = cleanCols[4] || "";
+            let lat = cleanCols[5];
+            let lng = cleanCols[6];
+            const imageStr = cleanCols[7] || "";
+            const images = imageStr ? imageStr.split(";").map(s => s.trim()).filter(Boolean) : [BACKUP_IMAGE];
+
+            if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+                lat = 35.016 + (Math.random() * 0.04 - 0.02);
+                lng = 126.716 + (Math.random() * 0.04 - 0.02);
+            }
+
+            let existingIdx = -1;
+            if (rowId) {
+                existingIdx = state.activities.findIndex(act => act.id === rowId);
+            }
+
+            if (existingIdx !== -1) {
+                const existingAct = state.activities[existingIdx];
+                state.activities[existingIdx] = {
+                    ...existingAct,
+                    title: title,
+                    sticker: sticker,
+                    content: content,
+                    address: address,
+                    lat: Number(lat),
+                    lng: Number(lng),
+                    images: (imageStr && images.length > 0) ? images : existingAct.images
+                };
+                countUpdated++;
+            } else {
+                const newAct = {
+                    id: rowId || ("act_csv_" + Date.now() + "_" + i),
+                    title: title,
+                    sticker: sticker,
+                    content: content,
+                    address: address,
+                    lat: Number(lat),
+                    lng: Number(lng),
+                    images: images
+                };
+                state.activities.unshift(newAct);
+                countInserted++;
+            }
+        }
+
+        if (countUpdated > 0 || countInserted > 0) {
+            saveActivities();
+            switchTab("list");
+            showToast(`🎉 수정 ${countUpdated}건, 신규 등록 ${countInserted}건이 한 번에 반영되었습니다!`);
+        } else {
+            showToast("유효한 데이터가 없습니다.");
+        }
+    };
+    reader.readAsText(file, "utf-8");
+}
+
+function downloadCSVTemplate() {
+    const csvContent = "\uFEFFid,title,sticker,content,address,lat,lng,images\n" +
+        "act_sample_1,금성관,i_maeuljosa,나주 객사 조선시대 역사 탐방 마을조사,전남 나주시 금성관길 8,35.0315,126.7169,\n" +
+        "act_sample_2,빛가람호수공원,b_yuchoyium,유초이음 생태 공원 탐방,전남 나주시 호수로 67,35.0210,126.7780,\n";
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sample_activities_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("📥 CSV 기본 양식 샘플이 다운로드되었습니다.");
+}
+
+function compressImage(dataUrl, callback, maxWidth = 800, maxHeight = 800, quality = 0.7) {
+    const img = new Image();
+    img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+        } else {
+            if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+            }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        callback(compressedDataUrl);
+    };
+    img.onerror = () => {
+        callback(dataUrl);
+    };
+    img.src = dataUrl;
+}
+
 function resetCategoryFilterToAll() {
     state.currentCategoryFilter = "all";
     document.querySelectorAll(".filter_btn").forEach(btn => {
@@ -2504,305 +2406,6 @@ function resetCategoryFilterToAll() {
     });
 }
 
-// 지오코딩: 주소 텍스트 ➔ 위경도 좌표 변환 및 지도/폼 설정
-function searchAddressToCoords(addrStr, callback) {
-    showToast("🔍 주소 위치를 검색하는 중입니다...");
-    const query = encodeURIComponent(addrStr);
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lng = parseFloat(data[0].lon);
-                setFormCoordsAndMarker(lat, lng, addrStr);
-                showToast("📍 위치가 지정되었습니다!");
-                if (callback) callback({ lat, lng, address: addrStr });
-            } else {
-                showToast("주소 위치를 찾을 수 없습니다. 도로명/지번 주소를 정확히 입력해 주세요.");
-                if (callback) callback(null);
-            }
-        })
-        .catch(err => {
-            console.error("지오코딩 에러", err);
-            showToast("주소 검색 중 오류가 발생했습니다.");
-            if (callback) callback(null);
-        });
-}
-
-// 역 지오코딩: 위경도 좌표 ➔ 주소 반환 및 주소 폼 채움
-function reverseGeocodeCoords(lat, lng) {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.display_name) {
-                let cleanAddr = data.display_name;
-                if (data.address) {
-                    const parts = [];
-                    if (data.address.province || data.address.city) parts.push(data.address.province || data.address.city);
-                    if (data.address.county || data.address.city_district) parts.push(data.address.county || data.address.city_district);
-                    if (data.address.suburb || data.address.town || data.address.village) parts.push(data.address.suburb || data.address.town || data.address.village);
-                    if (data.address.road) parts.push(data.address.road);
-                    if (data.address.house_number) parts.push(data.address.house_number);
-                    if (parts.length > 0) cleanAddr = parts.join(" ");
-                }
-                const inputAddr = document.getElementById("inputAddress");
-                if (inputAddr && !inputAddr.value.trim()) {
-                    inputAddr.value = cleanAddr;
-                }
-            }
-        })
-        .catch(() => {});
-}
-
-// 폼에 선택 위치 좌표 및 주소 설정 헬퍼
-function setFormCoordsAndMarker(lat, lng, addressStr) {
-    state.selectedLat = lat;
-    state.selectedLng = lng;
-
-    const inputLat = document.getElementById("inputLat");
-    const inputLng = document.getElementById("inputLng");
-    if (inputLat) inputLat.value = lat;
-    if (inputLng) inputLng.value = lng;
-
-    const display = document.getElementById("coordsDisplay");
-    if (display) {
-        display.textContent = "📍 지도 상의 위치가 지정되었습니다.";
-        applyStyles(display, {
-            background: "#eff6ff",
-            color: "#2563eb",
-            borderColor: "#bfdbfe"
-        });
-    }
-
-    if (addressStr) {
-        const inputAddr = document.getElementById("inputAddress");
-        if (inputAddr) inputAddr.value = addressStr;
-    }
-
-    if (state.map) {
-        state.map.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
-    }
-}
-
-// 지도 지점 클릭 시 폼에 위치 및 주소 적용
-function openRegisterFormAt(lat, lng) {
-    setFormCoordsAndMarker(lat, lng);
-    reverseGeocodeCoords(lat, lng);
-    switchTab("add");
-    showToast("📍 선택한 위치 좌표와 주소가 설정되었습니다.");
-}
-
-// RFC 4180 호환 견고한 CSV 파서 (utf-8-sig BOM 및 따옴표 안전 파싱)
-function parseCSVText(text) {
-    if (text.charCodeAt(0) === 0xFEFF) {
-        text = text.substr(1);
-    }
-    const lines = [];
-    let row = [""];
-    let inQuotes = false;
-
-    for (let i = 0; i < text.length; i++) {
-        const c = text[i];
-        const next = text[i + 1];
-
-        if (c === '"') {
-            if (inQuotes && next === '"') {
-                row[row.length - 1] += '"';
-                i++;
-            } else {
-                inQuotes = !inQuotes;
-            }
-        } else if (c === ',' && !inQuotes) {
-            row.push("");
-        } else if ((c === '\r' || c === '\n') && !inQuotes) {
-            if (c === '\r' && next === '\n') i++;
-            lines.push(row);
-            row = [""];
-        } else {
-            row[row.length - 1] += c;
-        }
-    }
-    if (row.length > 1 || row[0] !== "") {
-        lines.push(row);
-    }
-    return lines;
-}
-
-// CSV 데이터파일 선택 업로드 일괄 처리 함수
-function handleCSVUpload(file) {
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const csvContent = e.target.result;
-        const rows = parseCSVText(csvContent);
-
-        if (rows.length < 2) {
-            showToast("CSV 파일 데이터가 올바르지 않거나 비어있습니다.");
-            return;
-        }
-
-        const header = rows[0].map(h => h.trim().toLowerCase());
-        const titleIdx = header.indexOf("title");
-        const stickerIdx = header.indexOf("sticker");
-        const contentIdx = header.indexOf("content");
-        const addressIdx = header.indexOf("address");
-        const latIdx = header.indexOf("lat");
-        const lngIdx = header.indexOf("lng");
-        const imagesIdx = header.indexOf("images");
-
-        if (titleIdx === -1) {
-            showToast("CSV 파일 필수 항목(title)을 찾을 수 없습니다.");
-            return;
-        }
-
-        showToast("📁 CSV 데이터 일괄 업로드 및 주소 지오코딩을 수행하는 중입니다...");
-
-        let countAdded = 0;
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            if (!row || row.length === 0 || !row[titleIdx]) continue;
-
-            const title = row[titleIdx].trim();
-            let sticker = stickerIdx !== -1 && row[stickerIdx] ? row[stickerIdx].trim() : "b_yuchoyium";
-            if (!STICKER_TYPES[sticker]) sticker = "b_yuchoyium";
-
-            const content = contentIdx !== -1 && row[contentIdx] ? row[contentIdx].trim() : "지역연계활동 기록입니다.";
-            const address = addressIdx !== -1 && row[addressIdx] ? row[addressIdx].trim() : "";
-            let lat = latIdx !== -1 && row[latIdx] ? parseFloat(row[latIdx]) : null;
-            let lng = lngIdx !== -1 && row[lngIdx] ? parseFloat(row[lngIdx]) : null;
-            const imageStr = imagesIdx !== -1 && row[imagesIdx] ? row[imagesIdx].trim() : "";
-            const images = imageStr ? [imageStr] : [BACKUP_IMAGE];
-
-            // 주소만 있고 좌표가 없거나 올바르지 않은 경우 지오코딩 시도
-            if ((isNaN(lat) || isNaN(lng) || !lat || !lng) && address) {
-                try {
-                    const query = encodeURIComponent(address);
-                    const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
-                    const geoData = await resp.json();
-                    if (geoData && geoData.length > 0) {
-                        lat = parseFloat(geoData[0].lat);
-                        lng = parseFloat(geoData[0].lon);
-                    }
-                } catch (err) {
-                    console.error("CSV 지오코딩 변환 실패:", err);
-                }
-            }
-
-            // 좌표가 여전히 없으면 나주시 중심 오프셋 랜덤 부여
-            if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-                lat = 35.016 + (Math.random() * 0.04 - 0.02);
-                lng = 126.716 + (Math.random() * 0.04 - 0.02);
-            }
-
-            const newAct = {
-                id: "act_csv_" + Date.now() + "_" + i,
-                title: title,
-                sticker: sticker,
-                content: content,
-                address: address,
-                lat: Number(lat),
-                lng: Number(lng),
-                images: images
-            };
-
-            state.activities.unshift(newAct);
-            countAdded++;
-        }
-
-        if (countAdded > 0) {
-            saveActivities();
-            switchTab("list");
-            showToast(`🎉 ${countAdded}개의 데이터가 성공적으로 일괄 등록되었습니다!`);
-        } else {
-            showToast("유효한 데이터가 없습니다.");
-        }
-    };
-    reader.readAsText(file, "utf-8");
-}
-
-// CSV 샘플 양식 다운로드 함수
-function downloadCSVTemplate() {
-    const csvContent = "\uFEFFtitle,sticker,content,address,lat,lng,images\n" +
-        "금성관,i_maeuljosa,나주 객사 조선시대 역사 탐방 마을조사,전남 나주시 금성관길 8,35.0315,126.7169,\n" +
-        "빛가람호수공원,b_yuchoyium,유초이음 생태 공원 탐방,전남 나주시 호수로 67,35.0210,126.7780,\n";
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "sample_activities_template.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast("📥 CSV 양식 샘플이 다운로드되었습니다.");
-}
-
-// 활동 레코드 저장/수정 프로세스
-function saveActivityRecord() {
-    const title = document.getElementById("inputTitle").value.trim();
-    const content = document.getElementById("inputContent").value.trim();
-    const inputAddr = document.getElementById("inputAddress");
-    const address = inputAddr ? inputAddr.value.trim() : "";
-
-    if (state.selectedLat === null || state.selectedLng === null || isNaN(state.selectedLat) || isNaN(state.selectedLng)) {
-        showToast("지도를 클릭하거나 위치가 지정되어 있어야 합니다!");
-        return;
-    }
-
-    if (!title || !content) {
-        showToast("모든 항목을 입력해 주세요.");
-        return;
-    }
-
-    const images = state.selectedImages.length > 0 ? [...state.selectedImages] : [BACKUP_IMAGE];
-
-    if (state.editingActivityId) {
-        // 기존 활동 수정 업데이트 (불변 객체 배열 전면 교체)
-        state.activities = state.activities.map(act => {
-            if (act.id === state.editingActivityId) {
-                return {
-                    ...act,
-                    title: title,
-                    sticker: state.selectedSticker,
-                    content: content,
-                    address: address,
-                    images: images,
-                    lat: Number(state.selectedLat),
-                    lng: Number(state.selectedLng)
-                };
-            }
-            return act;
-        });
-        showToast("활동 기록이 성공적으로 수정되었습니다!");
-    } else {
-        // 신규 활동 추가
-        const newActivity = {
-            id: "act_" + Date.now(),
-            title: title,
-            sticker: state.selectedSticker,
-            content: content,
-            address: address,
-            images: images,
-            lat: Number(state.selectedLat),
-            lng: Number(state.selectedLng)
-        };
-        state.activities.unshift(newActivity);
-        showToast("새로운 활동이 지도에 등록되었습니다!");
-    }
-
-    // 변경된 항목이 즉시 눈에 보이도록 상단 필터를 '전체'로 자동 전환
-    resetCategoryFilterToAll();
-
-    // 로컬스토리지 영구 저장 및 최신화
-    saveActivities();
-    resetForm();
-    switchTab("list");
-}
-
-// 활동 수정 모드 개시
 function startEditActivity(act) {
     state.editingActivityId = act.id;
     state.selectedLat = Number(act.lat);
@@ -2848,7 +2451,6 @@ function startEditActivity(act) {
     showToast("수정 모드로 전환되었습니다. 내용을 수정한 뒤 완결 단추를 눌러주세요.");
 }
 
-// 활동 폼 완벽 초기화
 function resetForm() {
     const form = document.getElementById("activityForm");
     if (form) form.reset();
@@ -2871,7 +2473,6 @@ function resetForm() {
     state.selectedLng = null;
     hideImagePreview();
 
-    // 스티커 셀렉터 UI 첫 항목으로 리셋
     document.querySelectorAll(".sticker_option").forEach(opt => {
         if (opt.dataset.sticker === "b_yuchoyium") {
             opt.classList.add("active");
@@ -2894,9 +2495,7 @@ function resetForm() {
     if (saveBtn) saveBtn.textContent = "지도에 등록하기";
 }
 
-// 지도 위의 마커 재생성 (스마트 사진 클러스터 연동)
 function renderActivitiesOnMap() {
-    // 기존 마커 전체 및 클러스터 레이어 초기화
     if (state.markerClusterGroup) {
         state.markerClusterGroup.clearLayers();
     } else {
@@ -2904,7 +2503,6 @@ function renderActivitiesOnMap() {
     }
     state.markers = [];
 
-    // 필터 조건에 부합하는 활동들을 마커로 맵핑
     state.activities.forEach(act => {
         if (shouldShowActivity(act)) {
             createMarkerForActivity(act);
@@ -2912,7 +2510,6 @@ function renderActivitiesOnMap() {
     });
 }
 
-// BIGBANG 스티커 필터 조건 확인
 function shouldShowActivity(act) {
     if (!state.currentCategoryFilter || state.currentCategoryFilter === "all") {
         return true;
@@ -2920,24 +2517,19 @@ function shouldShowActivity(act) {
     return act.sticker === state.currentCategoryFilter;
 }
 
-// 특정 활동에 대한 대표 이미지 썸네일 마커 제작 및 클러스터 그룹 연동
 function createMarkerForActivity(act) {
     const sticker = STICKER_TYPES[act.sticker] || STICKER_TYPES.b_yuchoyium;
 
-    // 대표 사진 이미지가 있는지 확인
     const hasImage = act.images && act.images.length > 0 && act.images[0];
     const thumbUrl = hasImage ? act.images[0] : null;
 
     let innerContent = "";
     if (thumbUrl && thumbUrl !== BACKUP_IMAGE) {
-        // 실제 등록된 대표 사진 썸네일 렌더링
         innerContent = `<img src="${thumbUrl}" alt="${act.title}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" />`;
     } else {
-        // 사진이 없는 경우 이모지 아이콘 적용
         innerContent = `<span style="font-size: 20px;">${sticker.emoji}</span>`;
     }
 
-    // 대표 이미지 썸네일과 스티커 미니 코너 뱃지가 결합된 액자형 사진 마커 핀 (20% 확대 적용)
     const iconHtml = `
         <div class="custom_marker_pin" style="
             position: relative;
@@ -2948,13 +2540,12 @@ function createMarkerForActivity(act) {
             border: 3.5px solid ${sticker.color};
             box-shadow: 0 10px 24px rgba(0,0,0,0.25);
             display: flex;
-            justify-content: center;
+            justify: center;
             align-items: center;
             cursor: pointer;
             transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         ">
             ${innerContent}
-            <!-- 스티커 카테고리 미니 코너 뱃지 (20% 확대) -->
             <div style="
                 position: absolute;
                 bottom: -3px;
@@ -2982,25 +2573,18 @@ function createMarkerForActivity(act) {
     });
 
     const marker = L.marker([act.lat, act.lng], { icon: customIcon });
-    if (state.markerClusterGroup) {
-        state.markerClusterGroup.addLayer(marker);
-    } else {
-        marker.addTo(state.map);
-    }
 
-    // 마커 클릭 시 우아하게 롤오버되는 오버레이 표시
     marker.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
         showDetailOverlay(act);
     });
 
-    // 마우스 호버 효과
     marker.on("mouseover", (e) => {
         const markerDom = e.target.getElement().querySelector(".custom_marker_pin");
         if (markerDom) {
             applyStyles(markerDom, {
-                transform: "scale(1.15) translateY(-4px)",
-                boxShadow: "0 8px 25px rgba(0,0,0,0.2)"
+                transform: "scale(1.25) translateY(-6px)",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.3)"
             });
         }
     });
@@ -3010,18 +2594,21 @@ function createMarkerForActivity(act) {
         if (markerDom) {
             applyStyles(markerDom, {
                 transform: "scale(1) translateY(0)",
-                boxShadow: "0 4px 15px rgba(0,0,0,0.15)"
+                boxShadow: "0 10px 24px rgba(0,0,0,0.25)"
             });
         }
     });
 
-    // 추후 삭제 등을 위해 배열 보관
-    state.markers.push(marker);
-    // 마커 객체 내에 활동 ID를 심어둠
     marker.activityId = act.id;
+
+    if (state.markerClusterGroup) {
+        state.markerClusterGroup.addLayer(marker);
+    } else {
+        marker.addTo(state.map);
+    }
+    state.markers.push(marker);
 }
 
-// 롤오버 상세 팝업 표시
 function showDetailOverlay(act) {
     const overlay = document.getElementById("detailOverlay");
     const card = overlay.querySelector(".detail_card_wrapper");
@@ -3039,39 +2626,28 @@ function showDetailOverlay(act) {
     }
 
     document.getElementById("detailTitle").textContent = act.title;
-    document.getElementById("detailContent").textContent = act.content;
 
-    const detailAddressEl = document.getElementById("detailAddress");
-    if (detailAddressEl) {
-        detailAddressEl.textContent = act.address || "나주시 지역 연계 활동 장소";
+    const detailAddr = document.getElementById("detailAddress");
+    if (detailAddr) {
+        detailAddr.textContent = act.address || "나주시 지역 연계 활동 장소";
     }
 
-    // 이미지 슬라이더 초기화
+    document.getElementById("detailContent").textContent = act.content;
+
     state.currentSliderIndex = 0;
     const images = act.images && act.images.length > 0 ? act.images : [BACKUP_IMAGE];
     updateSliderView(images);
 
-    // 모달을 지도 상자 내부 전용으로 부드럽게 활성화
-    applyStyles(overlay, {
-        display: "flex",
-        position: "absolute",
-        top: "0",
-        left: "0",
-        width: "100%",
-        height: "100%",
-        zIndex: "1000"
-    });
+    applyStyles(overlay, { display: "flex" });
 
     setTimeout(() => {
         applyStyles(overlay, { opacity: "1" });
         applyStyles(card, { transform: "scale(1)" });
     }, 50);
 
-    // 팝업 열림 시 20초 무조작 타이머 시작
     startPopupInactivityTimer();
 }
 
-// 이미지 슬라이더 뷰 갱신
 function updateSliderView(images) {
     const imgEl = document.getElementById("detailImage");
     const prevBtn = document.getElementById("slidePrevBtn");
@@ -3090,7 +2666,6 @@ function updateSliderView(images) {
         applyStyles(prevBtn, { display: "flex" });
         applyStyles(nextBtn, { display: "flex" });
 
-        // 화살표 리스너 클린 바인딩 (이벤트 중복 등록 방지)
         prevBtn.onclick = (e) => {
             e.stopPropagation();
             state.currentSliderIndex = (state.currentSliderIndex - 1 + images.length) % images.length;
@@ -3103,7 +2678,6 @@ function updateSliderView(images) {
             updateSliderView(images);
         };
 
-        // 도트 인디케이터 구성
         if (dotsEl) {
             dotsEl.innerHTML = "";
             images.forEach((_, idx) => {
@@ -3120,7 +2694,6 @@ function updateSliderView(images) {
     }
 }
 
-// 상세 팝업 닫기
 function hideDetailOverlay() {
     stopPopupInactivityTimer();
     const overlay = document.getElementById("detailOverlay");
@@ -3134,22 +2707,18 @@ function hideDetailOverlay() {
     }, 400);
 }
 
-// 팝업 무조작 자동 닫힘 타이머 시작 (20초)
 function startPopupInactivityTimer() {
     stopPopupInactivityTimer();
 
-    // 17초 시점 (20초 3초 전) 안내 메시지
     popupNoticeTimer = setTimeout(() => {
         showToast("3초 후 화면이 전환됩니다.");
     }, 17000);
 
-    // 20초 시점 팝업 자동 닫기
     popupInactivityTimer = setTimeout(() => {
         hideDetailOverlay();
     }, 20000);
 }
 
-// 팝업 타이머 정지
 function stopPopupInactivityTimer() {
     if (popupNoticeTimer) clearTimeout(popupNoticeTimer);
     if (popupInactivityTimer) clearTimeout(popupInactivityTimer);
@@ -3157,7 +2726,6 @@ function stopPopupInactivityTimer() {
     popupInactivityTimer = null;
 }
 
-// 팝업 조작 시 20초 타이머 리셋
 function resetPopupInactivityTimer() {
     const overlay = document.getElementById("detailOverlay");
     if (overlay && overlay.style.display !== "none") {
@@ -3165,22 +2733,18 @@ function resetPopupInactivityTimer() {
     }
 }
 
-// 화면 전체 무조작 자동 초기화 타이머 시작 (60초)
 function startGlobalIdleTimer() {
     stopGlobalIdleTimer();
 
-    // 57초 시점 (60초 3초 전) 안내 메시지
     idleNoticeTimer = setTimeout(() => {
         showToast("3초 후 화면이 전환됩니다.");
     }, 57000);
 
-    // 60초 시점 초기 화면 복귀
     idleInactivityTimer = setTimeout(() => {
         resetToInitialState();
     }, 60000);
 }
 
-// 전역 무조작 타이머 정지
 function stopGlobalIdleTimer() {
     if (idleNoticeTimer) clearTimeout(idleNoticeTimer);
     if (idleInactivityTimer) clearTimeout(idleInactivityTimer);
@@ -3188,12 +2752,10 @@ function stopGlobalIdleTimer() {
     idleInactivityTimer = null;
 }
 
-// 전역 조작 시 타이머 리셋
 function resetGlobalIdleTimer() {
     startGlobalIdleTimer();
 }
 
-// 60초 무조작 시 초기 화면 전면 복귀 및 나주시 정중앙 포커싱 처리
 function resetToInitialState() {
     hideDetailOverlay();
     resetCategoryFilterToAll();
@@ -3204,7 +2766,6 @@ function resetToInitialState() {
         if (state.umdLayer && typeof state.umdLayer.getBounds === "function" && state.umdLayer.getBounds().isValid()) {
             const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
             if (isPortrait) {
-                // 📱 세로모드: 사용자가 가장 만족한 딱 좋은 화면 구도 (상단 360px 포커싱 오프셋 및 maxZoom 11.5)
                 state.map.flyToBounds(state.umdLayer.getBounds(), {
                     paddingTopLeft: [20, 20],
                     paddingBottomRight: [20, 360],
@@ -3232,7 +2793,6 @@ function resetToInitialState() {
     showToast("초기 화면으로 전환되었습니다.");
 }
 
-// 전역 조작 이벤트 트래커 설정
 function setupGlobalIdleTracker() {
     const events = ["mousemove", "click", "keydown", "touchstart", "scroll"];
     events.forEach(evt => {
@@ -3243,13 +2803,11 @@ function setupGlobalIdleTracker() {
     });
 }
 
-// BIGBANG 필터가 클릭되었을 때 마커 및 목록 동기화
 function applyCategoryFilter() {
     renderActivitiesOnMap();
     updateActivityList();
 }
 
-// 활동 리스트 동기화 및 렌더링
 function updateActivityList() {
     const listContainer = document.getElementById("activityList");
     const countLabel = document.getElementById("activityCount");
@@ -3297,7 +2855,6 @@ function updateActivityList() {
             position: "relative"
         });
 
-        // 호버 효과 부여
         card.addEventListener("mouseenter", () => {
             applyStyles(card, {
                 transform: "translateY(-2px)",
@@ -3313,7 +2870,6 @@ function updateActivityList() {
             });
         });
 
-        // 썸네일 영역
         const thumb = document.createElement("div");
         applyStyles(thumb, {
             width: "60px",
@@ -3333,7 +2889,6 @@ function updateActivityList() {
         });
         thumb.appendChild(img);
 
-        // 텍스트 정보 영역
         const info = document.createElement("div");
         applyStyles(info, {
             flex: "1",
@@ -3388,7 +2943,6 @@ function updateActivityList() {
         });
         info.appendChild(addrEl);
 
-        // 관리자 모드일 때만 카드 내 수정/삭제 버튼 추가
         if (state.userMode === "admin") {
             const btnGroup = document.createElement("div");
             applyStyles(btnGroup, {
@@ -3400,7 +2954,6 @@ function updateActivityList() {
                 alignItems: "center"
             });
 
-            // 수정 버튼 (✏️)
             const editBtn = document.createElement("button");
             editBtn.innerHTML = "✏️";
             editBtn.title = "활동 내용 수정";
@@ -3434,7 +2987,6 @@ function updateActivityList() {
                 startEditActivity(act);
             });
 
-            // 삭제 버튼 (×)
             const delBtn = document.createElement("button");
             delBtn.innerHTML = "×";
             delBtn.title = "활동 기록 삭제";
@@ -3466,17 +3018,15 @@ function updateActivityList() {
         card.appendChild(thumb);
         card.appendChild(info);
 
-        // 카드 클릭 시 해당 활동 상세 오버레이 및 맵 중심으로 비행 (세로모드 상단 시야 중심 보정 및 1단계 더 확대)
         card.addEventListener("click", () => {
             showDetailOverlay(act);
             if (state.map) {
                 const isPortrait = window.matchMedia("(orientation: portrait), (max-width: 900px)").matches;
                 let targetLat = Number(act.lat);
                 let targetLng = Number(act.lng);
-                let targetZoom = isPortrait ? 15 : 14; // 세로모드 시 1단계 더 확대 (Zoom 15)
+                let targetZoom = isPortrait ? 15 : 14;
 
                 if (isPortrait) {
-                    // 세로모드: 화면 밖으로 이탈하지 않고 상단 시야에 시원하게 솟아오르도록 위도를 -0.0055로 황금 미세 조율!
                     targetLat = targetLat - 0.0055;
                 }
                 state.map.flyTo([targetLat, targetLng], targetZoom, {
@@ -3490,7 +3040,6 @@ function updateActivityList() {
     });
 }
 
-// 활동 단건 삭제 처리
 function deleteActivity(id) {
     state.activities = state.activities.filter(act => act.id !== id);
     resetCategoryFilterToAll();
@@ -3501,7 +3050,6 @@ function deleteActivity(id) {
     showToast("활동 기록이 삭제되었습니다.");
 }
 
-// 알림용 커스텀 토스트 팝업 띄우기
 function showToast(msg) {
     const existing = document.getElementById("customToast");
     if (existing) existing.remove();
@@ -3545,7 +3093,6 @@ function showToast(msg) {
     }, 3000);
 }
 
-// 지도 로딩 레이어 페이드 아웃 및 제거
 function hideMapLoader() {
     const loader = document.getElementById("mapLoader");
     if (loader) {
@@ -3559,7 +3106,6 @@ function hideMapLoader() {
     }
 }
 
-// 📱 모바일 구글맵/카카오맵 스타일 3단계 바텀시트 손잡이 바 & 터치 인터랙션 연동
 function setupBottomSheet() {
     const handle = document.getElementById("bottomSheetHandle");
     const sidePanel = document.getElementById("sidePanel");
@@ -3584,13 +3130,11 @@ function setupBottomSheet() {
         }
     }
 
-    // 손잡이 바 클릭 시 토글
     handle.addEventListener("click", () => {
         if (isDragging) return;
         toggleState();
     });
 
-    // 닫기 뱃지 직접 클릭 시 강제 접기
     if (closeBtn) {
         closeBtn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -3604,7 +3148,6 @@ function setupBottomSheet() {
         });
     }
 
-    // 손가락 터치 드래그 상하 스와이프 연동
     handle.addEventListener("touchstart", (e) => {
         startY = e.touches[0].clientY;
         isDragging = false;
@@ -3622,7 +3165,6 @@ function setupBottomSheet() {
         if (!isDragging) return;
         let deltaY = currentY - startY;
         if (deltaY < -35) {
-            // 위로 스와이프 올림
             if (sidePanel.classList.contains("collapsed")) {
                 sidePanel.className = "half";
                 if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
@@ -3631,7 +3173,6 @@ function setupBottomSheet() {
                 if (hintText) hintText.textContent = "▼ 터치하여 시트 접기";
             }
         } else if (deltaY > 35) {
-            // 아래로 스와이프 내림 (접기)
             if (sidePanel.classList.contains("expanded")) {
                 sidePanel.className = "half";
                 if (hintText) hintText.textContent = "▲ 터치하여 크게 펼치기";
