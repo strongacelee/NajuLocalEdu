@@ -347,20 +347,12 @@ function applyGlobalStyles() {
         flex: "1",
         display: "flex",
         position: "relative",
-        zIndex: "5",
-        padding: "20px 30px 30px 30px",
-        gap: "24px",
-        height: "calc(100% " + HYPHEN + " 100px)",
-        boxSizing: "border" + HYPHEN + "box"
+        zIndex: "5"
     });
 
     applyStyles(mapWrapper, {
         flex: "1",
         height: "100%",
-        borderRadius: "24px",
-        overflow: "hidden",
-        boxShadow: "0 12px 40px rgba(31, 38, 135, 0.06)",
-        border: "1px solid rgba(255, 255, 255, 0.6)",
         position: "relative",
         background: "#ffffff"
     });
@@ -372,19 +364,9 @@ function applyGlobalStyles() {
     });
 
     applyStyles(sidePanel, {
-        width: "420px",
-        height: "100%",
-        background: "#ffffff",
-        backdropFilter: "none",
-        webkitBackdropFilter: "none",
-        borderRadius: "24px",
-        border: "1px solid rgba(226, 232, 240, 0.8)",
-        boxShadow: "0 12px 40px rgba(0, 0, 0, 0.05)",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
-        position: "relative",
-        zIndex: "10"
+        overflow: "hidden"
     });
 
     const tabs = document.querySelector(".panel_tabs");
@@ -1219,8 +1201,11 @@ function applyGlobalStyles() {
             box${HYPHEN}shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
             user${HYPHEN}select: none;
             touch${HYPHEN}action: none;
-            margin${HYPHEN}right: 14px;
-            margin${HYPHEN}bottom: 14px;
+            left: 25px !important;
+            right: auto !important;
+            bottom: 25px !important;
+            position: absolute !important;
+            z${HYPHEN}index: 100 !important;
         }
 
         .zoom_icon_btn {
@@ -1284,6 +1269,63 @@ function applyGlobalStyles() {
             box${HYPHEN}shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
         }
 
+        /* 💻 가로 화면 (Landscape 데스크톱/태블릿) 지도 중앙 + 70% 불투명 반투명 플로팅 카드로 지정 */
+        @media screen and (min-width: 901px) and (orientation: landscape) {
+            #mainContent {
+                position: relative !important;
+                width: 100% !important;
+                height: calc(100vh ${HYPHEN} 82px) !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: flex !important;
+                overflow: hidden !important;
+            }
+
+            #mapWrapper {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                border${HYPHEN}radius: 0 !important;
+                z${HYPHEN}index: 1 !important;
+                flex: 1 1 100% !important;
+            }
+
+            #sidePanel {
+                position: absolute !important;
+                top: 20px !important;
+                right: 25px !important;
+                bottom: 25px !important;
+                left: auto !important;
+                width: 390px !important;
+                height: auto !important;
+                max${HYPHEN}height: calc(100% ${HYPHEN} 45px) !important;
+                background: rgba(255, 255, 255, 0.70) !important;
+                backdrop${HYPHEN}filter: blur(16px) !important;
+                ${HYPHEN}webkit${HYPHEN}backdrop${HYPHEN}filter: blur(16px) !important;
+                border${HYPHEN}radius: 24px !important;
+                border: 1px solid rgba(255, 255, 255, 0.8) !important;
+                box${HYPHEN}shadow: 0 16px 45px rgba(0, 0, 0, 0.12) !important;
+                z${HYPHEN}index: 99 !important;
+                display: flex !important;
+                flex${HYPHEN}direction: column !important;
+                overflow: hidden !important;
+            }
+
+            .bottom_sheet_handle {
+                display: none !important;
+            }
+
+            .touch_zoom_slider_container {
+                right: 435px !important;
+                left: auto !important;
+                bottom: 30px !important;
+                position: absolute !important;
+                z${HYPHEN}index: 100 !important;
+            }
+        }
+
         /* 📱 세로 화면 (Portrait 태블릿 및 모바일) 구글맵/카카오맵 스타일 네이티브 바텀 시트 적용 */
         @media screen and (orientation: portrait), screen and (max${HYPHEN}width: 900px) {
             #appContainer {
@@ -1343,11 +1385,15 @@ function applyGlobalStyles() {
             }
 
             #mapWrapper {
+                position: relative !important;
+                top: auto !important;
+                left: auto !important;
                 width: 100% !important;
                 height: 100% !important;
                 min${HYPHEN}height: 100% !important;
                 border${HYPHEN}radius: 0 !important;
                 flex: 1 1 100% !important;
+                z${HYPHEN}index: 1 !important;
             }
 
             .bottom_sheet_handle {
@@ -1404,12 +1450,18 @@ function applyGlobalStyles() {
 
             #sidePanel {
                 position: fixed !important;
+                top: auto !important;
                 bottom: 0 !important;
                 left: 0 !important;
+                right: auto !important;
                 width: 100% !important;
+                max${HYPHEN}height: none !important;
                 z${HYPHEN}index: 9999 !important;
                 background: #ffffff !important;
+                backdrop${HYPHEN}filter: none !important;
+                ${HYPHEN}webkit${HYPHEN}backdrop${HYPHEN}filter: none !important;
                 border${HYPHEN}radius: 28px 28px 0 0 !important;
+                border: none !important;
                 box${HYPHEN}shadow: 0 ${HYPHEN}10px 40px rgba(0, 0, 0, 0.25) !important;
                 transition: height 0.3s cubic${HYPHEN}bezier(0.16, 1, 0.3, 1) !important;
                 display: flex !important;
@@ -1492,6 +1544,14 @@ function applyGlobalStyles() {
             .detail_content_paper p {
                 font${HYPHEN}size: 13px !important;
                 line${HYPHEN}height: 1.5 !important;
+            }
+
+            .touch_zoom_slider_container {
+                left: auto !important;
+                right: 14px !important;
+                bottom: 70px !important;
+                position: absolute !important;
+                z${HYPHEN}index: 100 !important;
             }
         }
     `;
@@ -1621,7 +1681,10 @@ function initMap() {
 
     setTimeout(() => {
         state.map.invalidateSize();
-    }, 100);
+        if (!isPortrait) {
+            state.map.panBy([-195, 0], { animate: false });
+        }
+    }, 200);
 
     const primaryTileUrl = "https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png";
     const secondaryTileUrl = "https://xdworld.vworld.kr/2d/white/service/{z}/{x}/{y}.png";
@@ -2775,7 +2838,8 @@ function resetToInitialState() {
                 });
             } else {
                 state.map.flyToBounds(state.umdLayer.getBounds(), {
-                    padding: [40, 40],
+                    paddingTopLeft: [30, 30],
+                    paddingBottomRight: [435, 30],
                     maxZoom: 11.5,
                     animate: true,
                     duration: 0.5
@@ -3033,6 +3097,11 @@ function updateActivityList() {
                     animate: true,
                     duration: 0.6
                 });
+                if (!isPortrait) {
+                    setTimeout(() => {
+                        if (state.map) state.map.panBy([-195, 0], { animate: true, duration: 0.3 });
+                    }, 650);
+                }
             }
         });
 
