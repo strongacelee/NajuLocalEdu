@@ -1792,22 +1792,40 @@ function initMap() {
         minZoom: 10,
         maxZoom: 19,
         touchZoom: true,
-        bounceAtZoomLimits: false
+        bounceAtZoomLimits: false,
+        attributionControl: true
     }).setView(najuCenter, initialZoom);
+
+    // 기본 영문 'Leaflet |' 출처 접두어를 깔끔한 한글 인포맵 문구로 교체
+    if (state.map.attributionControl) {
+        state.map.attributionControl.setPrefix("🗺️ 다시초 지역연계 인포맵 | ");
+    }
 
     setTimeout(() => {
         state.map.invalidateSize();
     }, 100);
 
-    // 완벽한 한글 지명을 제공하는 오픈스트리트맵 기본 타일 연동
-    const tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-    const attribution = "&copy; OpenStreetMap contributors";
+    // 100% 대한민국 최신 한글 행정구역명을 제공하는 국토교통부 VWorld 국산 정밀 지도 타일 연동
+    const primaryTileUrl = "https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png";
+    const secondaryTileUrl = "https://xdworld.vworld.kr/2d/white/service/{z}/{x}/{y}.png";
+    const attribution = "&copy; 대한민국 국토교통부 VWorld 공간정보 오픈플랫폼";
 
-    L.tileLayer(tileUrl, {
+    const mainTileLayer = L.tileLayer(primaryTileUrl, {
         attribution: attribution,
         maxZoom: 19,
-        maxNativeZoom: 19
+        maxNativeZoom: 18
     }).addTo(state.map);
+
+    // 타일 로딩 예외 시 국산 백지도 2순위 레이어로 자동 전환
+    mainTileLayer.on("tileerror", () => {
+        if (!state.fallbackTileAdded) {
+            state.fallbackTileAdded = true;
+            L.tileLayer(secondaryTileUrl, {
+                attribution: attribution,
+                maxZoom: 19
+            }).addTo(state.map);
+        }
+    });
 
     // 1번 기능: 스마트 사진 클러스터링 & 🦚 공작새 부채(Peacock Fan) 롤오버 그룹 레이어 세팅
     if (typeof L.markerClusterGroup === "function") {
@@ -2302,6 +2320,11 @@ function setupEventListeners() {
     const modeAdminBtn = document.getElementById("modeAdminBtn");
     const syncCloudBtn = document.getElementById("syncCloudBtn");
 
+    const searchAddressBtn = document.getElementById("searchAddressBtn");
+    const inputAddress = document.getElementById("inputAddress");
+    const inputCSVFile = document.getElementById("inputCSVFile");
+    const downloadCSVTemplateBtn = document.getElementById("downloadCSVTemplateBtn");
+
     listBtn.addEventListener("click", () => switchTab("list"));
     addBtn.addEventListener("click", () => switchTab("add"));
 
@@ -2310,6 +2333,45 @@ function setupEventListeners() {
 
     if (syncCloudBtn) {
         syncCloudBtn.addEventListener("click", uploadLocalDataToFirebase);
+    }
+
+    // 주소 검색 버튼 및 엔터 키 연동
+    if (searchAddressBtn && inputAddress) {
+        searchAddressBtn.addEventListener("click", () => {
+            const addr = inputAddress.value.trim();
+            if (addr) {
+                searchAddressToCoords(addr);
+            } else {
+                showToast("검색할 주소를 입력해 주세요.");
+            }
+        });
+        inputAddress.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const addr = inputAddress.value.trim();
+                if (addr) {
+                    searchAddressToCoords(addr);
+                } else {
+                    showToast("검색할 주소를 입력해 주세요.");
+                }
+            }
+        });
+    }
+
+    // CSV 파일 일괄 업로드 및 샘플 템플릿 다운로드 연동
+    if (inputCSVFile) {
+        inputCSVFile.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleCSVUpload(file);
+                inputCSVFile.value = "";
+            }
+        });
+    }
+    if (downloadCSVTemplateBtn) {
+        downloadCSVTemplateBtn.addEventListener("click", () => {
+            downloadCSVTemplate();
+        });
     }
 
     // 오버레이 클릭 시 닫기
@@ -2442,10 +2504,248 @@ function resetCategoryFilterToAll() {
     });
 }
 
+// 지오코딩: 주소 텍스트 ➔ 위경도 좌표 변환 및 지도/폼 설정
+function searchAddressToCoords(addrStr, callback) {
+    showToast("🔍 주소 위치를 검색하는 중입니다...");
+    const query = encodeURIComponent(addrStr);
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                setFormCoordsAndMarker(lat, lng, addrStr);
+                showToast("📍 위치가 지정되었습니다!");
+                if (callback) callback({ lat, lng, address: addrStr });
+            } else {
+                showToast("주소 위치를 찾을 수 없습니다. 도로명/지번 주소를 정확히 입력해 주세요.");
+                if (callback) callback(null);
+            }
+        })
+        .catch(err => {
+            console.error("지오코딩 에러", err);
+            showToast("주소 검색 중 오류가 발생했습니다.");
+            if (callback) callback(null);
+        });
+}
+
+// 역 지오코딩: 위경도 좌표 ➔ 주소 반환 및 주소 폼 채움
+function reverseGeocodeCoords(lat, lng) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.display_name) {
+                let cleanAddr = data.display_name;
+                if (data.address) {
+                    const parts = [];
+                    if (data.address.province || data.address.city) parts.push(data.address.province || data.address.city);
+                    if (data.address.county || data.address.city_district) parts.push(data.address.county || data.address.city_district);
+                    if (data.address.suburb || data.address.town || data.address.village) parts.push(data.address.suburb || data.address.town || data.address.village);
+                    if (data.address.road) parts.push(data.address.road);
+                    if (data.address.house_number) parts.push(data.address.house_number);
+                    if (parts.length > 0) cleanAddr = parts.join(" ");
+                }
+                const inputAddr = document.getElementById("inputAddress");
+                if (inputAddr && !inputAddr.value.trim()) {
+                    inputAddr.value = cleanAddr;
+                }
+            }
+        })
+        .catch(() => {});
+}
+
+// 폼에 선택 위치 좌표 및 주소 설정 헬퍼
+function setFormCoordsAndMarker(lat, lng, addressStr) {
+    state.selectedLat = lat;
+    state.selectedLng = lng;
+
+    const inputLat = document.getElementById("inputLat");
+    const inputLng = document.getElementById("inputLng");
+    if (inputLat) inputLat.value = lat;
+    if (inputLng) inputLng.value = lng;
+
+    const display = document.getElementById("coordsDisplay");
+    if (display) {
+        display.textContent = "📍 지도 상의 위치가 지정되었습니다.";
+        applyStyles(display, {
+            background: "#eff6ff",
+            color: "#2563eb",
+            borderColor: "#bfdbfe"
+        });
+    }
+
+    if (addressStr) {
+        const inputAddr = document.getElementById("inputAddress");
+        if (inputAddr) inputAddr.value = addressStr;
+    }
+
+    if (state.map) {
+        state.map.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
+    }
+}
+
+// 지도 지점 클릭 시 폼에 위치 및 주소 적용
+function openRegisterFormAt(lat, lng) {
+    setFormCoordsAndMarker(lat, lng);
+    reverseGeocodeCoords(lat, lng);
+    switchTab("add");
+    showToast("📍 선택한 위치 좌표와 주소가 설정되었습니다.");
+}
+
+// RFC 4180 호환 견고한 CSV 파서 (utf-8-sig BOM 및 따옴표 안전 파싱)
+function parseCSVText(text) {
+    if (text.charCodeAt(0) === 0xFEFF) {
+        text = text.substr(1);
+    }
+    const lines = [];
+    let row = [""];
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        const next = text[i + 1];
+
+        if (c === '"') {
+            if (inQuotes && next === '"') {
+                row[row.length - 1] += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (c === ',' && !inQuotes) {
+            row.push("");
+        } else if ((c === '\r' || c === '\n') && !inQuotes) {
+            if (c === '\r' && next === '\n') i++;
+            lines.push(row);
+            row = [""];
+        } else {
+            row[row.length - 1] += c;
+        }
+    }
+    if (row.length > 1 || row[0] !== "") {
+        lines.push(row);
+    }
+    return lines;
+}
+
+// CSV 데이터파일 선택 업로드 일괄 처리 함수
+function handleCSVUpload(file) {
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const csvContent = e.target.result;
+        const rows = parseCSVText(csvContent);
+
+        if (rows.length < 2) {
+            showToast("CSV 파일 데이터가 올바르지 않거나 비어있습니다.");
+            return;
+        }
+
+        const header = rows[0].map(h => h.trim().toLowerCase());
+        const titleIdx = header.indexOf("title");
+        const stickerIdx = header.indexOf("sticker");
+        const contentIdx = header.indexOf("content");
+        const addressIdx = header.indexOf("address");
+        const latIdx = header.indexOf("lat");
+        const lngIdx = header.indexOf("lng");
+        const imagesIdx = header.indexOf("images");
+
+        if (titleIdx === -1) {
+            showToast("CSV 파일 필수 항목(title)을 찾을 수 없습니다.");
+            return;
+        }
+
+        showToast("📁 CSV 데이터 일괄 업로드 및 주소 지오코딩을 수행하는 중입니다...");
+
+        let countAdded = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0 || !row[titleIdx]) continue;
+
+            const title = row[titleIdx].trim();
+            let sticker = stickerIdx !== -1 && row[stickerIdx] ? row[stickerIdx].trim() : "b_yuchoyium";
+            if (!STICKER_TYPES[sticker]) sticker = "b_yuchoyium";
+
+            const content = contentIdx !== -1 && row[contentIdx] ? row[contentIdx].trim() : "지역연계활동 기록입니다.";
+            const address = addressIdx !== -1 && row[addressIdx] ? row[addressIdx].trim() : "";
+            let lat = latIdx !== -1 && row[latIdx] ? parseFloat(row[latIdx]) : null;
+            let lng = lngIdx !== -1 && row[lngIdx] ? parseFloat(row[lngIdx]) : null;
+            const imageStr = imagesIdx !== -1 && row[imagesIdx] ? row[imagesIdx].trim() : "";
+            const images = imageStr ? [imageStr] : [BACKUP_IMAGE];
+
+            // 주소만 있고 좌표가 없거나 올바르지 않은 경우 지오코딩 시도
+            if ((isNaN(lat) || isNaN(lng) || !lat || !lng) && address) {
+                try {
+                    const query = encodeURIComponent(address);
+                    const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+                    const geoData = await resp.json();
+                    if (geoData && geoData.length > 0) {
+                        lat = parseFloat(geoData[0].lat);
+                        lng = parseFloat(geoData[0].lon);
+                    }
+                } catch (err) {
+                    console.error("CSV 지오코딩 변환 실패:", err);
+                }
+            }
+
+            // 좌표가 여전히 없으면 나주시 중심 오프셋 랜덤 부여
+            if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+                lat = 35.016 + (Math.random() * 0.04 - 0.02);
+                lng = 126.716 + (Math.random() * 0.04 - 0.02);
+            }
+
+            const newAct = {
+                id: "act_csv_" + Date.now() + "_" + i,
+                title: title,
+                sticker: sticker,
+                content: content,
+                address: address,
+                lat: Number(lat),
+                lng: Number(lng),
+                images: images
+            };
+
+            state.activities.unshift(newAct);
+            countAdded++;
+        }
+
+        if (countAdded > 0) {
+            saveActivities();
+            switchTab("list");
+            showToast(`🎉 ${countAdded}개의 데이터가 성공적으로 일괄 등록되었습니다!`);
+        } else {
+            showToast("유효한 데이터가 없습니다.");
+        }
+    };
+    reader.readAsText(file, "utf-8");
+}
+
+// CSV 샘플 양식 다운로드 함수
+function downloadCSVTemplate() {
+    const csvContent = "\uFEFFtitle,sticker,content,address,lat,lng,images\n" +
+        "금성관,i_maeuljosa,나주 객사 조선시대 역사 탐방 마을조사,전남 나주시 금성관길 8,35.0315,126.7169,\n" +
+        "빛가람호수공원,b_yuchoyium,유초이음 생태 공원 탐방,전남 나주시 호수로 67,35.0210,126.7780,\n";
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sample_activities_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("📥 CSV 양식 샘플이 다운로드되었습니다.");
+}
+
 // 활동 레코드 저장/수정 프로세스
 function saveActivityRecord() {
     const title = document.getElementById("inputTitle").value.trim();
     const content = document.getElementById("inputContent").value.trim();
+    const inputAddr = document.getElementById("inputAddress");
+    const address = inputAddr ? inputAddr.value.trim() : "";
 
     if (state.selectedLat === null || state.selectedLng === null || isNaN(state.selectedLat) || isNaN(state.selectedLng)) {
         showToast("지도를 클릭하거나 위치가 지정되어 있어야 합니다!");
@@ -2468,6 +2768,7 @@ function saveActivityRecord() {
                     title: title,
                     sticker: state.selectedSticker,
                     content: content,
+                    address: address,
                     images: images,
                     lat: Number(state.selectedLat),
                     lng: Number(state.selectedLng)
@@ -2483,6 +2784,7 @@ function saveActivityRecord() {
             title: title,
             sticker: state.selectedSticker,
             content: content,
+            address: address,
             images: images,
             lat: Number(state.selectedLat),
             lng: Number(state.selectedLng)
@@ -2507,15 +2809,13 @@ function startEditActivity(act) {
     state.selectedLng = Number(act.lng);
     state.selectedSticker = act.sticker || "b_yuchoyium";
 
-    // 기본 백업 이미지(BACKUP_IMAGE)는 제외하여 사용자가 새로 첨부하는 사진이 1순위 대표 이미지가 되도록 함
     state.selectedImages = act.images && act.images.length > 0
         ? act.images.filter(img => img !== BACKUP_IMAGE)
         : [];
 
-    // 위치 표시 업데이트
     const display = document.getElementById("coordsDisplay");
     if (display) {
-        display.textContent = `위도: ${Number(act.lat).toFixed(5)}, 경도: ${Number(act.lng).toFixed(5)}`;
+        display.textContent = "📍 수정할 지도 위치가 선택되었습니다.";
         applyStyles(display, {
             background: "#eff6ff",
             color: "#2563eb",
@@ -2528,7 +2828,9 @@ function startEditActivity(act) {
     document.getElementById("inputTitle").value = act.title || "";
     document.getElementById("inputContent").value = act.content || "";
 
-    // 스티커 셀렉터 UI 활성화
+    const inputAddr = document.getElementById("inputAddress");
+    if (inputAddr) inputAddr.value = act.address || "";
+
     document.querySelectorAll(".sticker_option").forEach(opt => {
         if (opt.dataset.sticker === state.selectedSticker) {
             opt.classList.add("active");
@@ -2537,14 +2839,11 @@ function startEditActivity(act) {
         }
     });
 
-    // 업로드 이미지 프리뷰 렌더링
     renderPreviewList();
 
-    // 등록 버튼 텍스트 변경
     const saveBtn = document.getElementById("saveBtn");
     if (saveBtn) saveBtn.textContent = "활동 내용 수정 완료";
 
-    // 활동 등록(수정) 탭으로 이동
     switchTab("add");
     showToast("수정 모드로 전환되었습니다. 내용을 수정한 뒤 완결 단추를 눌러주세요.");
 }
@@ -2562,6 +2861,8 @@ function resetForm() {
     if (inputTitle) inputTitle.value = "";
     const inputContent = document.getElementById("inputContent");
     if (inputContent) inputContent.value = "";
+    const inputAddr = document.getElementById("inputAddress");
+    if (inputAddr) inputAddr.value = "";
 
     state.editingActivityId = null;
     state.selectedImages = [];
@@ -2581,7 +2882,7 @@ function resetForm() {
 
     const display = document.getElementById("coordsDisplay");
     if (display) {
-        display.textContent = "지도를 클릭하여 위치를 지정해 주세요.";
+        display.textContent = "지도를 클릭하거나 주소를 검색하면 위치가 설정됩니다.";
         applyStyles(display, {
             background: "rgba(241, 245, 249, 0.6)",
             color: "#64748b",
@@ -2739,6 +3040,11 @@ function showDetailOverlay(act) {
 
     document.getElementById("detailTitle").textContent = act.title;
     document.getElementById("detailContent").textContent = act.content;
+
+    const detailAddressEl = document.getElementById("detailAddress");
+    if (detailAddressEl) {
+        detailAddressEl.textContent = act.address || "나주시 지역 연계 활동 장소";
+    }
 
     // 이미지 슬라이더 초기화
     state.currentSliderIndex = 0;
@@ -3069,6 +3375,18 @@ function updateActivityList() {
 
         info.appendChild(topRow);
         info.appendChild(titleEl);
+
+        const addrEl = document.createElement("div");
+        addrEl.textContent = act.address ? `📍 ${act.address}` : "📍 나주시 지역 연계 활동 장소";
+        applyStyles(addrEl, {
+            fontSize: "12px",
+            color: "#64748b",
+            marginTop: "3px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+        });
+        info.appendChild(addrEl);
 
         // 관리자 모드일 때만 카드 내 수정/삭제 버튼 추가
         if (state.userMode === "admin") {
