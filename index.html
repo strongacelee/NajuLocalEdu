@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="referrer" content="no-referrer">
-<title>나주 지역연계 인포맵</title>
+<title>나주 지역연계 인포맵 (전라남도 나주시 교육 특화 지도)</title>
 <link rel="stylesheet" href="./lib/leaflet/leaflet.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
 <script src="./lib/leaflet/leaflet.js"></script>
@@ -490,13 +490,92 @@ svg, path, .leaflet_interactive {
 .btn_primary { background: #2563eb; color: #ffffff; }
 .btn_danger { background: #dc2626; color: #ffffff; }
 .btn_secondary { background: #64748b; color: #ffffff; }
+
+/* 팝업 상세창 닫기 X 버튼 황금비율 최적화 */
+.leaflet-container a.leaflet-popup-close-button {
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 30px !important;
+  font-size: 20px !important;
+  font-weight: bold !important;
+  color: #ffffff !important;
+  background: rgba(15, 23, 42, 0.90) !important;
+  border-radius: 50% !important;
+  border: 2px solid #ffffff !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: 10px !important;
+  right: 10px !important;
+  text-decoration: none !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.15s ease !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #ffffff !important;
+  transform: scale(1.1) !important;
+}
+.drawer-header button.btn-close-drawer {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.drawer-header button.btn-close-drawer:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+
+/* 팝업 닫기 X 버튼 완전 제거 및 팝업 카드 전체 원터치 닫기 스타일 */
+.leaflet-container a.leaflet-popup-close-button,
+.leaflet-popup-close-button {
+  display: none !important;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup,
+.leaflet-popup-content {
+  cursor: pointer !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* 팝업 내부의 모든 자식 요소(사진, 제목, 글자, 태그 등): 포인터 이벤트를 통과(pass through)시켜 중앙 어디를 눌러도 100% 즉시 닫힘 보장 */
+.leaflet-popup-content *,
+.leaflet-popup-content img,
+.leaflet-popup-content h3,
+.leaflet-popup-content p,
+.leaflet-popup-content span,
+.leaflet-popup-content div,
+.leaflet-popup-content b {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-user-drag: none !important;
+  cursor: pointer !important;
+}
+
 </style>
 </head>
 <body>
 <header>
   <div>
     <h1>나주 지역연계 인포맵</h1>
-    <p>다시초등학교 지역연계 맞춤형 교육과정 </p>
+    <p>다시초등학교 지역연계 맞춤형 교육과정</p>
   </div>
   <button class="btn btn_primary" onclick="openAddDrawer();">+ 장소 등록</button>
 </header>
@@ -564,7 +643,7 @@ svg, path, .leaflet_interactive {
   <div class="drawer" onclick="event.stopPropagation();">
     <div class="drawer_header">
       <h3 id="viewTitle" style="margin:0;">교육 자원 상세 정보</h3>
-      <button onclick="closeDrawer();" style="background:none; border:0; color:#ffffff; font-size:18px; cursor:pointer;">✕</button>
+      <button onclick="closeDrawer();" class="btn-close-drawer">✕</button>
     </div>
     <div class="drawer_body" id="viewBody"></div>
     <div class="drawer_footer">
@@ -579,7 +658,7 @@ svg, path, .leaflet_interactive {
   <div class="drawer">
     <div class="drawer_header">
       <h3 id="drawerTitle" style="margin:0;">장소 정보 입력/수정</h3>
-      <button onclick="closeDrawer();" style="background:none; border:0; color:#ffffff; font-size:18px; cursor:pointer;">✕</button>
+      <button onclick="closeDrawer();" class="btn-close-drawer">✕</button>
     </div>
     <div class="drawer_body">
       <input type="hidden" id="formId">
@@ -1391,9 +1470,27 @@ function initMapSystem() {
     }, 80);
   });
 
-  // 팝업 열림 및 닫힘 상태 실시간 추적
-  leafletMap.on('popupopen', function() {
+  // 팝업 열림 및 닫힘 상태 실시간 추적 및 상단 헤더 이탈 방탄 자동 보정
+  leafletMap.on('popupopen', function(e) {
     isPopupOpenState = true;
+    if (e && e.popup && e.popup.getElement()) {
+      const pEl = e.popup.getElement();
+      if (pEl) {
+        pEl.addEventListener('click', function(ev) {
+          if (leafletMap) leafletMap.closePopup();
+        }, true);
+      }
+      setTimeout(function() {
+        const el = e.popup.getElement();
+        if (!el || !leafletMap) return;
+        const rect = el.getBoundingClientRect();
+        // 상단 헤더와의 안전 거리 95px 미만이면 지도를 아래로 팬하여 팝업과 X마크를 100% 화면 내 진입
+        if (rect.top < 68) {
+          const panNeeded = Math.ceil(68 - rect.top);
+          leafletMap.panBy([0, (0 - panNeeded)], { animate: true, duration: 0.35 });
+        }
+      }, 70);
+    }
   });
 
   leafletMap.on('popupclose', function(e) {
@@ -1565,7 +1662,7 @@ function focusMarkerWithOffset(lat, lng, onComplete) {
     return;
   }
   // 줌 16 축척(4배 광역 원거리)에 최적화된 화면 중앙 정렬 위도 오프셋
-  const offsetLat = lat + 0.0052;
+  const offsetLat = lat + 0.0032;
   const targetZoom = 16;
   const currentCenter = leafletMap.getCenter();
   const currentZoom = leafletMap.getZoom();
@@ -1789,7 +1886,7 @@ function handleImgError(el) {
 function getSafeImgHtml(url, name, isPopup) {
   if (!url) return '';
   if (isPopup) {
-    return '<img src="' + url + '" style="width:100%; height:auto; max-height:390px; object-fit:contain; display:block; border-radius:8px; margin-bottom:10px;" alt="' + name + '" referrerpolicy="no-referrer" onerror="handleImgError(this);" onload="if(window.activePopupMarker && window.activePopupMarker.getPopup()){ window.activePopupMarker.getPopup().update(); }">';
+    return '<img src="' + url + '" draggable="false" ondragstart="return false;" style="width:100%; height:auto; max-height:230px; object-fit:contain; display:block; border-radius:8px; margin-bottom:10px; pointer-events:none; cursor:pointer;" alt="' + name + '" referrerpolicy="no-referrer" onerror="handleImgError(this);" onload="if(window.activePopupMarker && window.activePopupMarker.getPopup()){ window.activePopupMarker.getPopup().update(); }">';
   }
   return '<img src="' + url + '" class="card_img" alt="' + name + '" referrerpolicy="no-referrer" onerror="handleImgError(this);">';
 }
@@ -2029,7 +2126,6 @@ function renderMapAndList() {
         return '<div><span class="tag">' + item.town_name + '</span><span class="' + theme.tagClass + '"><span class="cat_dot ' + theme.dotClass + '"></span>' + theme.label + '</span></div>';
       })() +
         '<p style="margin-top:6px;"><b>주소:</b> ' + item.address + '</p>' +
-        '<p><b>위치:</b> 위도 ' + item.latitude.toFixed(5) + ', 경도 ' + item.longitude.toFixed(5) + ' <span style="color:#0284c7;">(드래그가능)</span></p>' +
         '<p><b>장소소개:</b> ' + item.description + '</p>' +
         '<p><b>관련교과:</b> ' + item.subject + '</p>' +
         '<div style="margin-top:8px; display:flex; gap:6px;">' +
@@ -2080,7 +2176,7 @@ function renderMapAndList() {
       }
 
       // 팝업 상세창
-      const popupHtml = '<div style="min-width:300px; max-width:440px; padding:6px 4px; box-sizing:border-box;">' +
+      const popupHtml = '<div style="min-width:300px; max-width:440px; max-height:calc(100vh - 170px); overflow-y:auto; padding:6px 4px; box-sizing:border-box; cursor:pointer;" onclick="if(leafletMap) leafletMap.closePopup();" title="클릭하면 닫힙니다">' +
         getSafeImgHtml(item.image_url, item.name, true) +
         '<h3 style="margin:0 0 8px 0; font: bold 22px sans-serif; color:#1e3a8a; line-height:1.3;">📍 ' + item.name + '</h3>' +
         (() => {
@@ -2091,12 +2187,18 @@ function renderMapAndList() {
         '<p style="margin:8px 0 6px 0; font: 18px sans-serif; color:#475569; border-top:1px solid #e2e8f0; padding-top:8px; line-height:1.5;"><b>💡 장소소개:</b> ' + item.description + '</p>' +
         '<p style="margin:5px 0; font: 16px sans-serif; color:#64748b; line-height:1.4;"><b>📚 관련교과:</b> ' + item.subject + '</p>' +
         '<p style="margin:5px 0; font: 16px sans-serif; color:#64748b; line-height:1.4;"><b>🏃 활동사례:</b> ' + item.activity_case + '</p>' +
+        '<div style="margin-top:12px; padding-top:8px; border-top:1px solid #e2e8f0; text-align:center; font-size:12px; color:#94a3b8; user-select:none;">' +
+        '💡 팝업 어디든 누르면 바로 닫힙니다' +
+        '</div>' +
         '</div>';
 
       marker.bindPopup(popupHtml, {
         maxWidth: 450,
-        minWidth: 390,
-        autoPan: false
+        minWidth: 380,
+        closeButton: false,
+        autoPan: true,
+        autoPanPaddingTopLeft: [40, 80],
+        autoPanPaddingBottomRight: [40, 50]
       });
       marker.off('click', marker._openPopup);
 
@@ -2548,6 +2650,27 @@ function setupInactivityAutoReset() {
   resetInactivityTimer();
 }
 
+</script>
+<script>
+// 팝업 전역 관통 클릭 닫기 다중 이벤트 캡처링 리스너
+(function() {
+  const popupEventTypes = ['click', 'pointerdown', 'touchend'];
+  popupEventTypes.forEach(function(evType) {
+    document.addEventListener(evType, function(ev) {
+      if (typeof leafletMap === 'undefined' || !leafletMap) return;
+      const target = ev.target;
+      if (!target) return;
+      const isInsidePopup = (target.closest && (target.closest('.leaflet-popup') || target.closest('.leaflet-popup-content-wrapper') || target.closest('.leaflet-popup-content'))) ||
+                            (target.classList && (target.classList.contains('leaflet-popup') || target.classList.contains('leaflet-popup-content-wrapper') || target.classList.contains('leaflet-popup-content')));
+      if (isInsidePopup) {
+        leafletMap.closePopup();
+        if (typeof isPopupOpenState !== 'undefined') {
+          isPopupOpenState = false;
+        }
+      }
+    }, true);
+  });
+})();
 </script>
 </body>
 </html>
