@@ -44,6 +44,7 @@ header p {
   display: flex;
   position: relative;
   overflow: hidden;
+  overflow-x: hidden !important;
 }
 .map_section {
   flex: 1;
@@ -550,6 +551,8 @@ svg, path, .leaflet_interactive {
   cursor: pointer !important;
   user-select: none !important;
   -webkit-user-select: none !important;
+  max-width: min(440px, calc(100vw - 32px)) !important;
+  box-sizing: border-box !important;
 }
 
 /* 팝업 내부의 모든 자식 요소(사진, 제목, 글자, 태그 등): 포인터 이벤트를 통과(pass through)시켜 중앙 어디를 눌러도 100% 즉시 닫힘 보장 */
@@ -569,6 +572,210 @@ svg, path, .leaflet_interactive {
   cursor: pointer !important;
 }
 
+
+/* 모바일 및 태블릿 반응형 스마트 레이아웃 스타일 */
+.btn_mobile_toggle_list {
+  display: none;
+  position: absolute;
+  top: 68px;
+  right: 14px;
+  z-index: 1100 !important;
+  background: #ffffff;
+  color: #1e3a8a;
+  border: 2px solid #3b82f6;
+  border-radius: 24px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.btn_mobile_toggle_list:active {
+  transform: scale(0.96);
+  background: #eff6ff;
+}
+.sidebar_backdrop {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1400;
+  backdrop-filter: blur(2px);
+  transition: opacity 0.3s ease;
+}
+.sidebar_backdrop.active {
+  display: block;
+}
+.sidebar_close_btn_mobile {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.15s ease;
+}
+.sidebar_close_btn_mobile:active {
+  background: #f1f5f9;
+  transform: scale(0.92);
+}
+
+@media (max-width: 1100px) {
+  html, body {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  /* 창 분할 모드 및 태블릿/모바일에서 헤더 완전히 가림 */
+  header {
+    display: none !important;
+  }
+  .container {
+    flex: 1 !important;
+    height: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+  }
+  .map_section {
+    flex: 1 !important;
+    height: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+  }
+  #map {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  #btnHeaderToggleList {
+    display: inline-flex !important;
+  }
+
+  header {
+    padding: 10px 14px !important;
+  }
+  header h1 {
+    font-size: 17px !important;
+  }
+  header p {
+    font-size: 12px !important;
+  }
+  header .btn_primary {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* 지도가 화면 전체(100%)를 차지 */
+  .map_section {
+    width: 100% !important;
+    flex: 1 !important;
+  }
+
+  /* 사이드바는 화면 오른쪽 밖으로 숨김 (슬라이드 오버레이) */
+  .sidebar {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: min(390px, 88vw) !important;
+    height: 100% !important;
+    z-index: 1500 !important;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.28) !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-left: none !important;
+  }
+  .sidebar.mobile_open {
+    transform: translateX(0) !important;
+  }
+
+  /* 모바일 플로팅 토글 버튼 활성화 */
+  .btn_mobile_toggle_list {
+    display: flex !important;
+  }
+  .sidebar_close_btn_mobile {
+    display: flex !important;
+  }
+
+  /* 모바일 팝업 창 폭 유연화 */
+  .leaflet-popup {
+    max-width: calc(100vw - 28px) !important;
+  }
+  .leaflet-popup-content-wrapper {
+    max-width: calc(100vw - 28px) !important;
+  }
+  .leaflet-popup-content {
+    margin: 8px 10px !important;
+  }
+  .leaflet-popup-content > div {
+    min-width: unset !important;
+    max-width: calc(100vw - 48px) !important;
+  }
+
+  /* 카테고리 스위치 바 모바일 최적화 */
+  .category_toggle_switch_bar {
+    max-width: calc(100vw - 24px) !important;
+    overflow-x: auto !important;
+    padding: 6px 10px !important;
+    gap: 6px !important;
+  }
+}
+
+
+.btn_mobile_add_place {
+  display: none;
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1000 !important;
+  background: #1e3a8a;
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.btn_mobile_add_place:active {
+  transform: scale(0.95);
+  background: #1d4ed8;
+}
+
+@media (max-width: 1100px) {
+  .btn_mobile_add_place {
+    display: flex !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -577,12 +784,17 @@ svg, path, .leaflet_interactive {
     <h1>나주 지역연계 인포맵</h1>
     <p>다시초등학교 지역연계 맞춤형 교육과정</p>
   </div>
-  <button class="btn btn_primary" onclick="openAddDrawer();">+ 장소 등록</button>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <button class="btn btn_secondary" id="btnHeaderToggleList" onclick="toggleMobileSidebar();" style="display:none; font-weight:bold; padding:8px 14px; background:rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.4);" title="교육 자원 목록 열기/닫기">📋 자원 목록</button>
+    <button class="btn btn_primary" onclick="openAddDrawer();">+ 장소 등록</button>
+  </div>
 </header>
 
 <div class="container">
   <div class="map_section">
     <div id="map"></div>
+    <!-- 창 분할 모드 전용 플로팅 장소 등록 버튼 (헤더 숨김 시 대체 기능) -->
+    <button type="button" class="btn_mobile_add_place" id="btnMobileAddPlace" onclick="openAddDrawer();" title="새 장소 등록">+ 장소 등록</button>
     <div class="map_type_switch_container" id="mapSwitchContainer">
       <button type="button" class="map_switch_btn active" id="btnMapBase" onclick="userSwitchMap('base');">🗺️ 기본지도</button>
       <button type="button" class="map_switch_btn" id="btnMapSat" onclick="userSwitchMap('satellite');">🛰️ 위성지도</button>
@@ -624,13 +836,19 @@ svg, path, .leaflet_interactive {
         </div>
       </div>
     </div>
+
+    <!-- 모바일 및 태블릿 전용 플로팅 교육자원 목록 토글 버튼 -->
+    <button type="button" class="btn_mobile_toggle_list" id="btnMobileToggleList" onclick="toggleMobileSidebar();" title="교육 자원 목록 열기">
+      📋 교육자원 목록 (<span id="btnMobileListCount">30</span>)
+    </button>
   </div>
 
-  <div class="sidebar">
+  <div class="sidebar_backdrop" id="sidebarBackdrop" onclick="closeMobileSidebar();"></div>
+  <div class="sidebar" id="sidebarMain">
     <div class="sidebar_header">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <h2 style="margin:0; font-size:16px; color:#0f172a;">나주시 교육 자원 목록 (<span id="totalCount">0</span>개)</h2>
-        
+        <button type="button" class="sidebar_close_btn_mobile" onclick="closeMobileSidebar();" title="목록 닫기">✕</button>
       </div>
       <div id="selectedTownStatus" style="margin-top:8px; font-size:12px; color:#0284c7; font-weight:bold; display:none;"></div>
     </div>
@@ -1690,7 +1908,32 @@ function focusMarkerWithOffset(lat, lng, onComplete) {
   setTimeout(finish, 1800);
 }
 
+
+// 모바일 반응형 사이드바 제어 함수
+function toggleMobileSidebar() {
+  const sb = document.getElementById('sidebarMain');
+  const bd = document.getElementById('sidebarBackdrop');
+  if (!sb) return;
+  const isOpen = sb.classList.contains('mobile_open');
+  if (isOpen) {
+    closeMobileSidebar();
+  } else {
+    sb.classList.add('mobile_open');
+    if (bd) bd.classList.add('active');
+  }
+}
+
+function closeMobileSidebar() {
+  const sb = document.getElementById('sidebarMain');
+  const bd = document.getElementById('sidebarBackdrop');
+  if (sb) sb.classList.remove('mobile_open');
+  if (bd) bd.classList.remove('active');
+}
+
 function showResourceDetail(id) {
+  if (window.innerWidth <= 1100) {
+    closeMobileSidebar();
+  }
   const item = resourcesList.find(r => r.resource_id === id);
   if (!item) return;
 
@@ -1706,8 +1949,18 @@ function showResourceDetail(id) {
   });
 
   const cardElem = document.getElementById('card_' + id);
-  if (cardElem) {
-    cardElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const cardContainer = document.getElementById('cardContainer');
+  const sidebar = document.getElementById('sidebarMain');
+  const isDesktop = window.innerWidth > 1100;
+  const isMobileOpen = sidebar && sidebar.classList.contains('mobile_open');
+
+  // 사이드바가 실제로 보이는 상태(PC 데스크톱이거나 모바일에서 열려있을 때)에만 수직 스크롤만 안전 이동
+  if (cardElem && (isDesktop || isMobileOpen)) {
+    if (cardContainer) {
+      // scrollIntoView 대신 순수 컨테이너 내부 scrollTop 이동으로 가로 스크롤 전파 원천 차단
+      const targetTop = cardElem.offsetTop - cardContainer.offsetTop;
+      cardContainer.scrollTo({ top: targetTop, behavior: 'smooth' });
+    }
     cardElem.style.borderColor = '#2563eb';
     cardElem.style.boxShadow = '0 0 0 2px #2563eb';
     setTimeout(function() {
@@ -1715,6 +1968,11 @@ function showResourceDetail(id) {
       cardElem.style.boxShadow = '';
     }, 1500);
   }
+
+  // 화면 가로 밀림 원천 방지 리셋
+  const mainContainer = document.querySelector('.container');
+  if (mainContainer) mainContainer.scrollLeft = 0;
+  window.scrollTo(0, 0);
 }
 
 function populateFilterOptions() {
@@ -2193,12 +2451,12 @@ function renderMapAndList() {
         '</div>';
 
       marker.bindPopup(popupHtml, {
-        maxWidth: 450,
-        minWidth: 380,
+        maxWidth: Math.min(430, window.innerWidth - 30),
+        minWidth: Math.min(320, window.innerWidth - 40),
         closeButton: false,
         autoPan: true,
-        autoPanPaddingTopLeft: [40, 80],
-        autoPanPaddingBottomRight: [40, 50]
+        autoPanPaddingTopLeft: [20, 75],
+        autoPanPaddingBottomRight: [20, 50]
       });
       marker.off('click', marker._openPopup);
 
@@ -2543,7 +2801,7 @@ function resetDefaultResources() {
 }
 // 10초 유휴 자동 초기화 타이머 시스템 (움직임이 없으면 초기 상태 자동 복원)
 let inactivityTimer = null;
-const INACTIVITY_TIMEOUT_MS = 10000; // 10초
+const INACTIVITY_TIMEOUT_MS = 30000; // 30초 (사용자 요청 반영)
 
 function resetToInitialState() {
   // 이미 완전한 초기 상태인 경우 화면 덜컹거림 방지
