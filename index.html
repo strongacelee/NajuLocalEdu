@@ -839,7 +839,7 @@ svg, path, .leaflet_interactive {
 
     <!-- 모바일 및 태블릿 전용 플로팅 교육자원 목록 토글 버튼 -->
     <button type="button" class="btn_mobile_toggle_list" id="btnMobileToggleList" onclick="toggleMobileSidebar();" title="교육 자원 목록 열기">
-      📋 교육자원 목록 (<span id="btnMobileListCount">30</span>)
+      📋 교육자원 목록 (<span id="btnMobileListCount">34</span>)
     </button>
   </div>
 
@@ -853,6 +853,11 @@ svg, path, .leaflet_interactive {
       <div id="selectedTownStatus" style="margin-top:8px; font-size:12px; color:#0284c7; font-weight:bold; display:none;"></div>
     </div>
     <div class="resource_list" id="cardContainer"></div>
+    <div style="padding: 10px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+      <button type="button" onclick="resetDefaultResources();" style="background: none; border: none; color: #64748b; font-size: 12px; cursor: pointer; text-decoration: underline;" title="공식 30개 기본 자원 상태로 복원">
+        🔄 공식 기본값(34개 장소)으로 복원
+      </button>
+    </div>
   </div>
 </div>
 
@@ -956,7 +961,7 @@ const PURE_INLINE_RESOURCES = [
   {
     "resource_id": 1,
     "name": "나주목 관아 및 금성관",
-    "town_name": "금남동",
+    "town_name": "성북동",
     "category": "의",
     "address": "전라남도 나주시 금성관길 8",
     "latitude": 35.033383,
@@ -1125,7 +1130,7 @@ const PURE_INLINE_RESOURCES = [
   {
     "resource_id": 15,
     "name": "동신대학교",
-    "town_name": "금남동",
+    "town_name": "성북동",
     "category": "예",
     "address": "전라남도 나주시 건재로 185",
     "latitude": 35.050157,
@@ -1342,6 +1347,58 @@ const PURE_INLINE_RESOURCES = [
     "subject": "과학, 실과, 슬기로운생활",
     "activity_case": "역사, 문화, 생태, 환경을 주제로 다양한 체험과 프로그램 참여",
     "image_url": "https://najudasi.jge.es.kr/raonkupload/handler/raonkhandler.jsp?k00=a2MMYzianzwE0orC2swMQwxC2syNgwvZGF0YS9hdHRhY2hfZGF0YS9oYW1weWVvbmcvbmFqdWRhc2lfZXMvazJib2FyZC9uYS9iYnNfMTE4OTk0L250dF8xODAxMTEwMDU0L2ltZ19iYzhjdjdmOWQ9YjR2NDA9NDZ2YWU9YjB2Nzg9MzRhMXY0YmYzdjJhZTlfdjQ5NTQuanBnCzI4NTE0OAtrMzEM7IiY7KCVMSAoNSkuanBnC2szMwwLazM0DDELazM1DGh0dHBzOi8vbmFqdWRhc2kuamdlLmVzLmtyL3Jhb25rdXBsb2FkL2hhbmRsZXIvcmFvbmt2aWV3ZXIuanNwC2szNgxibHVlC2szNwx0cnVlC2szOAxodHRwczovL25hanVkYXNpLmpnZS5lcy5rci9yYW9ua3VwbG9hZC9oYW5kbGVyL3Jhb25raGFuZGxlci5qc3ALazEyDDRkY2Q1NjBmYjcxMzQ2ZDhhNDUzODMwMWFjODIzODdkC2syMQwyZmUyM2NmMWU0Y2I5YzI4ZDIwYjc3NjEzMGQ2YTI2YnxAfDExODk5NHxAfDE4MDExMTAwNTQ="
+  },
+  {
+    "resource_id": 33,
+    "name": "스위밍차일드",
+    "town_name": "빛가람동",
+    "category": "예",
+    "address": "전남광주통합특별시 나주시 그린로 224",
+    "latitude": 35.023438,
+    "longitude": 126.792774,
+    "description": "전문 강사진의 도움을 받아 생활수영을 지도할 수 있는 사설 수영장입니다.",
+    "subject": "안전, 체육",
+    "activity_case": "물놀이 안전교육, 생활수영, 생존수영 지도",
+    "image_url": "https://najudasi.jge.es.kr/raonkupload/handler/raonkhandler.jsp?k00=a2MMYzianzwE0orC2swMQwxC2syNgwvZGF0YS9hdHRhY2hfZGF0YS9oYW1weWVvbmcvbmFqdWRhc2lfZXMvazJib2FyZC9uYS9iYnNfMTE4OTk0L250dF8xODAxMDY2NzExL2ltZ18zYjQ3djlmYzE9OTB2Y2E9NGZ2MDA9ODB2ZWM9MmY5MXYwNjk0djQ5YWZfdjUyNC5qcGcLMjI0MjAzNwtrMzEMS2FrYW9UYWxrXzIwMjYwNTE1XzE1MDAyMjA2Ni5qcGcLazMzDAtrMzQMMQtrMzUMaHR0cHM6Ly9uYWp1ZGFzaS5qZ2UuZXMua3IvcmFvbmt1cGxvYWQvaGFuZGxlci9yYW9ua3ZpZXdlci5qc3ALazM2DGJsdWULazM3DHRydWULazM4DGh0dHBzOi8vbmFqdWRhc2kuamdlLmVzLmtyL3Jhb25rdXBsb2FkL2hhbmRsZXIvcmFvbmtoYW5kbGVyLmpzcAtrMTIMMjk1YzU0YWE5NzMxNGE3MGE3MTIyNDlkZDExNGI5NTMLazIxDGE2YTA5ZDcxNjI1ZTU0YWY3NmMwMjFkZmUyNjQ5NzY4fEB8MTE4OTk0fEB8MTgwMTA2NjcxMQ=="
+  },
+  {
+    "resource_id": 34,
+    "name": "나주학생독립운동기념관",
+    "town_name": "금남동",
+    "category": "의",
+    "address": "전남광주통합특별시 나주시 죽림길 20",
+    "latitude": 35.028037,
+    "longitude": 126.726187,
+    "description": "1929년에 일어난 광주학생항일운동을 기념하기 위해 계기가 된 구나주역옆에 있는 기념관입니다.",
+    "subject": "사회",
+    "activity_case": "나주 학생독립운동에 대한 올바른 이해를 바탕으로 역사의식을 길러 민주시민역량 강화",
+    "image_url": "./images/studentindi.jpg"
+  },
+  {
+    "resource_id": 35,
+    "name": "남도의병역사박물관",
+    "town_name": "공산면",
+    "category": "의",
+    "address": "전남광주통합특별시 나주시 공산면 의병박물관길 1",
+    "latitude": 34.978906,
+    "longitude": 126.601666,
+    "description": "의병의 중심지였던 남도를, 지역민을 비롯한 전국의 관람객들이 이 같은 남도의병의 역사와 문화의 중요한 가치를 보고, 체험하고, 느낄 수 있도록 다양한 콘텐츠를 제공합니다.",
+    "subject": "사회, 인물",
+    "activity_case": "우리지역에서 태동한 의병활동을 알아보고, 역사적 인물들에 대해 탐구",
+    "image_url": "https://najudasi.jge.es.kr/raonkupload/handler/raonkhandler.jsp?k00=a2MMYzianzwE0orC2swMQwxC2syNgwvZGF0YS9hdHRhY2hfZGF0YS9oYW1weWVvbmcvbmFqdWRhc2lfZXMvazJib2FyZC9uYS9iYnNfMTE4OTk0L250dF8xODAxMjQ5NDQyL2ltZ19iMmI4dmM2ODM9YTZ2NTY9NDB2MWU9YjR2Zjk9MjczYXZjZDk3djRiZjJfdjg4NTQuanBnCzc2MzEyMQtrMzEMS2FrYW9UYWxrXzIwMjYxMDEzXzExMzEyODMwN18wMS5qcGcLazMzDAtrMzQMMQtrMzUMaHR0cHM6Ly9uYWp1ZGFzaS5qZ2UuZXMua3IvcmFvbmt1cGxvYWQvaGFuZGxlci9yYW9ua3ZpZXdlci5qc3ALazM2DGJsdWULazM3DHRydWULazM4DGh0dHBzOi8vbmFqdWRhc2kuamdlLmVzLmtyL3Jhb25rdXBsb2FkL2hhbmRsZXIvcmFvbmtoYW5kbGVyLmpzcAtrMTIMZGE4NzU5ZDAwNjdiNGEyOTgwOTRiYjZjMWQ0OGY3Y2YLazIxDDAxODJjZGE5ZDIyYjcwNTczNWNhNTA4N2VkODhkZGUzfEB8MTE4OTk0fEB8MTgwMTI0OTQ0Mg=="
+  },
+  {
+    "resource_id": 36,
+    "name": "정렬사",
+    "town_name": "성북동",
+    "category": "의",
+    "address": "전남광주통합특별시 나주시 정렬사길 43",
+    "latitude": 35.045962,
+    "longitude": 126.710965,
+    "description": "임진왜란 때 의병장으로 활약하다 제2차 진주성 전투에서 순절한 충의공 김천일 선생을 비롯한 나주 출신 충절 인물들의 위패를 모신 곳입니다.",
+    "subject": "사회",
+    "activity_case": "김천일 장군의 일화와 태조 왕건의 이야기를 통해 우리 지역 나주의 역사 이해의 깊이를 더함",
+    "image_url": "./images/jung.jpg"
   }
 ];
 
@@ -1355,8 +1412,10 @@ let markersGroup = null;
 let markersMap = {};
 let isPopupOpenState = false;
 
-const STORAGE_KEY = 'naju_educational_tourism_v26_master';
-const STORAGE_DELETED_KEY = 'naju_educational_tourism_v26_deleted_ids';
+const STORAGE_KEY = 'naju_educational_tourism_v28_master';
+const STORAGE_DELETED_KEY = 'naju_educational_tourism_v28_deleted_ids';
+// 영구 불변 기본값 골든 마스터 복제본 (외부 변조 원천 차단)
+const GOLDEN_MASTER_RESOURCES = Object.freeze(JSON.parse(JSON.stringify(PURE_INLINE_RESOURCES)));
 
 function saveToStorage() {
   try {
@@ -2416,9 +2475,11 @@ function renderMapAndList() {
         iconAnchor: [7, 7]
       });
 
+      // 장소 위치 틀어짐 방지: 일반 자원 마커는 안전 잠금(draggable: false) 처리
+      // 위치 수정이 필요할 때는 '정보 수정' 버튼의 전용 타깃 핀을 통해 정밀 변경 지원
       const marker = L.marker([item.latitude, item.longitude], {
         icon: pinIcon,
-        draggable: true
+        draggable: false
       });
 
       markersMap[item.resource_id] = marker;
@@ -2799,7 +2860,7 @@ function deleteDrawerData() {
 
 // 실수로 삭제했을 때 기본 26개 자원으로 되돌릴 수 있는 안전 초기화 함수
 function resetDefaultResources() {
-  if (confirm('삭제된 자원을 포함하여 기본 26개 교육 자원을 초기 상태로 복원하시겠습니까? (주의: 직접 이동한 마커 좌표도 초기화됩니다)')) {
+  if (confirm('모든 장소 정보를 공식 기본값(34개 교육 자원)으로 깨끗하게 초기화 복원하시겠습니까?')) {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_DELETED_KEY);
     location.reload();
